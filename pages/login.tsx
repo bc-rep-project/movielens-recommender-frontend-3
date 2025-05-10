@@ -8,11 +8,13 @@ import Link from 'next/link'
 import Layout from '../components/Layout'
 import axios from 'axios'
 import { login } from '../utils/api'
+import { useResponsive } from '../utils/device'
 
 const Login = () => {
   const supabaseClient = useSupabaseClient()
   const user = useUser()
   const router = useRouter()
+  const { isMobile } = useResponsive()
   const [useCustomForm, setUseCustomForm] = useState(true)
   const [formData, setFormData] = useState({
     email: '',
@@ -91,18 +93,18 @@ const Login = () => {
 
   return (
     <Layout title="Sign In | MovieLens Recommender">
-      <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-lg">
-        <h1 className="text-2xl font-bold text-center mb-6">Welcome to MovieLens Recommender</h1>
-        <p className="text-gray-600 text-center mb-8">
+      <div className="max-w-md mx-auto p-4 sm:p-6 bg-white rounded-lg shadow-lg my-4 sm:my-8">
+        <h1 className="text-xl sm:text-2xl font-bold text-center mb-4 sm:mb-6">Welcome to MovieLens</h1>
+        <p className="text-gray-600 text-center mb-6 sm:mb-8">
           Sign in to get personalized movie recommendations
         </p>
         
         <div className="mb-4 flex justify-center">
-          <div className="inline-flex rounded-md shadow-sm" role="group">
+          <div className="inline-flex rounded-md shadow-sm w-full sm:w-auto" role="group">
             <button
               type="button"
               onClick={() => setUseCustomForm(true)}
-              className={`px-4 py-2 text-sm font-medium rounded-l-lg ${
+              className={`px-4 py-2 text-sm font-medium rounded-l-lg flex-1 sm:flex-auto ${
                 useCustomForm
                   ? 'bg-primary-600 text-white'
                   : 'bg-white text-gray-700 border border-gray-300'
@@ -113,7 +115,7 @@ const Login = () => {
             <button
               type="button"
               onClick={() => setUseCustomForm(false)}
-              className={`px-4 py-2 text-sm font-medium rounded-r-lg ${
+              className={`px-4 py-2 text-sm font-medium rounded-r-lg flex-1 sm:flex-auto ${
                 !useCustomForm
                   ? 'bg-primary-600 text-white'
                   : 'bg-white text-gray-700 border border-gray-300'
@@ -128,7 +130,7 @@ const Login = () => {
           <div>
             {error && (
               <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                <p>{error}</p>
+                <p className="text-sm">{error}</p>
               </div>
             )}
             
@@ -144,7 +146,8 @@ const Login = () => {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  autoComplete="email"
                 />
               </div>
 
@@ -159,7 +162,8 @@ const Login = () => {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  autoComplete="current-password"
                 />
               </div>
 
@@ -167,7 +171,7 @@ const Login = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`w-full px-4 py-2 text-white bg-primary-600 rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 ${
+                  className={`w-full px-4 py-3 text-white bg-primary-600 rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 ${
                     loading ? 'opacity-70 cursor-not-allowed' : ''
                   }`}
                 >

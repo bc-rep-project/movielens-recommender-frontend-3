@@ -7,6 +7,8 @@ import { FaPlay, FaInfoCircle } from 'react-icons/fa'
 import Layout from '../components/Layout'
 import MovieCard from '../components/MovieCard'
 import MoviePlaceholder from '../components/MoviePlaceholder'
+import MovieRow from '../components/MovieRow'
+import HeroBanner from '../components/HeroBanner'
 import { getMovies, getPopularMovies, getUserRecommendations } from '../utils/api'
 import { Movie } from '../types/common'
 
@@ -20,7 +22,7 @@ interface MovieRowProps {
 }
 
 // MovieRow component for horizontal scrolling
-const MovieRow = ({ title, movies, viewMoreLink, isLoading, error }: MovieRowProps) => {
+const MovieRowComponent = ({ title, movies, viewMoreLink, isLoading, error }: MovieRowProps) => {
   if (isLoading) return <div className="h-[210px] bg-background-lighter rounded animate-pulse"></div>
   if (error) return <p className="text-text-secondary">Error loading movies</p>
   if (!movies?.length) return null
@@ -61,7 +63,7 @@ interface HeroBannerProps {
 }
 
 // Hero Banner component
-const HeroBanner = ({ movie }: HeroBannerProps) => {
+const HeroBannerComponent = ({ movie }: HeroBannerProps) => {
   if (!movie) return null;
   
   const [backdropError, setBackdropError] = useState(false);
@@ -134,7 +136,7 @@ const Home = () => {
   // Fetch user recommendations if user is logged in
   const { data: userRecommendations, error: recommendationsError } = useSWR(
     user ? `user-recommendations-${user.id}` : null,
-    () => user ? getUserRecommendations(undefined, 10) : null
+    () => user ? getUserRecommendations() : null
   )
   
   // Fetch recent movies
@@ -159,10 +161,10 @@ const Home = () => {
 
   return (
     <Layout title="Home | NetflixLens" fullWidth>
-      {/* Hero Banner */}
+      {/* Hero Banner - using our new component */}
       {heroMovie && <HeroBanner movie={heroMovie} />}
 
-      <div className="main-container pb-16">
+      <div className="main-container pb-8 sm:pb-12 md:pb-16">
         {/* User recommendations */}
         {user && hasRecommendations && (
           <MovieRow
@@ -195,7 +197,7 @@ const Home = () => {
           <>
             <MovieRow
               title="Action & Adventure"
-              movies={popularMovies.filter((movie: any) => 
+              movies={popularMovies.filter((movie: Movie) => 
                 movie.genres.some((genre: string) => ['Action', 'Adventure'].includes(genre))
               )}
               isLoading={isLoading}
@@ -204,7 +206,7 @@ const Home = () => {
             
             <MovieRow
               title="Comedy"
-              movies={popularMovies.filter((movie: any) => 
+              movies={popularMovies.filter((movie: Movie) => 
                 movie.genres.includes('Comedy')
               )}
               isLoading={isLoading}

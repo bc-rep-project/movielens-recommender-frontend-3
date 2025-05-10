@@ -5,21 +5,14 @@ import Layout from '../components/Layout'
 import MovieCard from '../components/MovieCard'
 import { searchMovies } from '../utils/api'
 import { FaSearch, FaInfoCircle } from 'react-icons/fa'
-
-// Define Movie interface
-interface Movie {
-  id: string;
-  title: string;
-  genres: string[];
-  poster_url?: string;
-  poster_path?: string;
-  year?: number;
-}
+import { useResponsive } from '../utils/device'
+import { Movie } from '../types/common'
 
 const SearchPage = () => {
   const router = useRouter()
   const { q } = router.query
   const [searchQuery, setSearchQuery] = useState('')
+  const { isMobile } = useResponsive()
 
   // Set the search input value when the URL query parameter changes
   useEffect(() => {
@@ -52,10 +45,10 @@ const SearchPage = () => {
 
   return (
     <Layout title={q ? `Search Results: ${q} | NetflixLens` : 'Search | NetflixLens'}>
-      <div className="space-y-8">
+      <div className="space-y-8 px-4 md:px-0">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <h1 className="text-3xl font-bold">
-            {q ? `Search Results: "${q}"` : 'Search'}
+          <h1 className="text-2xl md:text-3xl font-bold">
+            {q ? `${isMobile ? '' : 'Search Results: '}${isMobile ? 'Results: ' : ''}"${q}"` : 'Search'}
           </h1>
           
           {/* Search form */}
@@ -65,12 +58,12 @@ const SearchPage = () => {
               placeholder="Search movies..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="py-2 pl-10 pr-4 w-full md:w-64 bg-background-lighter text-text-primary rounded focus:outline-none focus:ring-1 focus:ring-primary-600"
+              className="py-2 pl-10 pr-4 w-full md:w-64 bg-background-lighter text-text-primary rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-600"
             />
             <FaSearch className="absolute left-3 top-3 text-text-secondary" />
             <button
               type="submit"
-              className="md:hidden mt-2 py-2 px-4 bg-primary-600 text-white rounded w-full"
+              className="md:hidden mt-2 py-2 px-4 bg-primary-600 text-white rounded-lg w-full"
             >
               Search
             </button>
@@ -79,7 +72,7 @@ const SearchPage = () => {
         
         {/* Search results */}
         {!q ? (
-          <div className="text-center py-12">
+          <div className="text-center py-8 md:py-12">
             <FaSearch className="mx-auto text-4xl text-text-secondary mb-4" />
             <h3 className="text-xl font-bold mb-2">Enter a search term</h3>
             <p className="text-text-secondary">
@@ -87,25 +80,25 @@ const SearchPage = () => {
             </p>
           </div>
         ) : isLoading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <div key={i} className="h-60 bg-background-lighter rounded animate-pulse"></div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
+            {Array.from({ length: isMobile ? 6 : 12 }).map((_, i) => (
+              <div key={i} className="h-48 md:h-60 bg-background-lighter rounded animate-pulse"></div>
             ))}
           </div>
         ) : error ? (
-          <div className="p-6 text-center bg-background-lighter rounded-lg">
+          <div className="p-4 md:p-6 text-center bg-background-lighter rounded-lg">
             <FaInfoCircle className="mx-auto text-primary-600 text-4xl mb-4" />
             <h3 className="text-lg font-medium mb-2">Error searching movies</h3>
             <p className="text-text-secondary mb-4">Sorry, we encountered an error while searching. Please try again.</p>
             <button 
               onClick={() => router.reload()}
-              className="bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700 transition"
+              className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition"
             >
               Try Again
             </button>
           </div>
         ) : !hasResults ? (
-          <div className="text-center py-12">
+          <div className="text-center py-8 md:py-12">
             <FaInfoCircle className="mx-auto text-4xl text-text-secondary mb-4" />
             <h3 className="text-xl font-bold mb-2">No results found</h3>
             <p className="text-text-secondary mb-4">
@@ -113,7 +106,7 @@ const SearchPage = () => {
             </p>
             <button
               onClick={() => router.push('/movies')}
-              className="bg-primary-600 text-white px-6 py-2 rounded hover:bg-primary-700 transition"
+              className="bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 transition"
             >
               Browse All Movies
             </button>
@@ -123,19 +116,12 @@ const SearchPage = () => {
             <p className="text-text-secondary mb-4">
               Found {searchResults.length} {searchResults.length === 1 ? 'result' : 'results'} for "{q}"
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-              {searchResults.map((movie: Movie) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
+              {searchResults.map((movie) => (
                 <MovieCard
                   key={movie.id}
-                  movie={{
-                    id: movie.id,
-                    title: movie.title,
-                    genres: movie.genres,
-                    poster_url: movie.poster_url,
-                    poster_path: movie.poster_path,
-                    year: movie.year
-                  }}
-                  size="medium"
+                  movie={movie}
+                  size={isMobile ? "small" : "medium"}
                 />
               ))}
             </div>
@@ -146,4 +132,4 @@ const SearchPage = () => {
   )
 }
 
-export default SearchPage 
+export default SearchPage

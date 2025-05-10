@@ -7,11 +7,13 @@ import MovieCard from '../components/MovieCard'
 import { getUserRecommendations } from '../utils/api'
 import { FaInfoCircle } from 'react-icons/fa'
 import { Movie } from '../types/common'
+import { useResponsive } from '../utils/device'
 
 const RecommendationsPage = () => {
   const router = useRouter()
   const user = useUser()
   const [filter, setFilter] = useState<string>('all')
+  const { isMobile } = useResponsive()
 
   // Redirect if not logged in
   if (!user) {
@@ -53,16 +55,16 @@ const RecommendationsPage = () => {
 
   return (
     <Layout title="Your Recommendations | NetflixLens">
-      <div className="space-y-8">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">Your Recommendations</h1>
+      <div className="space-y-6 md:space-y-8 px-4 md:px-0">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <h1 className="text-2xl md:text-3xl font-bold">Your Recommendations</h1>
           
           {/* Genre filter */}
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              className="appearance-none bg-background-lighter text-text-primary border border-border rounded py-2 pl-4 pr-10 focus:outline-none focus:ring-1 focus:ring-primary-600"
+              className="appearance-none bg-background-lighter text-text-primary border border-border rounded-lg py-2 pl-4 pr-10 w-full sm:w-auto focus:outline-none focus:ring-1 focus:ring-primary-600"
             >
               <option value="all">All Genres</option>
               {allGenres.map((genre) => (
@@ -78,23 +80,23 @@ const RecommendationsPage = () => {
         </div>
         
         {isLoading ? (
-          <div className="flex justify-center py-12">
-            <div className="w-16 h-16 border-t-4 border-primary-600 border-solid rounded-full animate-spin"></div>
+          <div className="flex justify-center py-8 md:py-12">
+            <div className="w-12 h-12 md:w-16 md:h-16 border-t-4 border-primary-600 border-solid rounded-full animate-spin"></div>
           </div>
         ) : error ? (
-          <div className="p-6 text-center bg-background-lighter rounded-lg">
-            <FaInfoCircle className="mx-auto text-primary-600 text-4xl mb-4" />
+          <div className="p-4 md:p-6 text-center bg-background-lighter rounded-lg">
+            <FaInfoCircle className="mx-auto text-primary-600 text-3xl md:text-4xl mb-3 md:mb-4" />
             <h3 className="text-lg font-medium mb-2">Failed to load recommendations</h3>
             <p className="text-text-secondary mb-4">Sorry, we couldn't load your movie recommendations at this time.</p>
             <button 
               onClick={() => router.reload()}
-              className="bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700 transition"
+              className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition"
             >
               Try Again
             </button>
           </div>
         ) : !filteredRecommendations?.length ? (
-          <div className="text-center py-12">
+          <div className="text-center py-8 md:py-12">
             {filter === 'all' ? (
               <>
                 <h3 className="text-xl font-bold mb-2">No recommendations yet</h3>
@@ -103,7 +105,7 @@ const RecommendationsPage = () => {
                 </p>
                 <button
                   onClick={() => router.push('/movies')}
-                  className="bg-primary-600 text-white px-6 py-2 rounded hover:bg-primary-700 transition"
+                  className="bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 transition"
                 >
                   Browse Movies
                 </button>
@@ -116,7 +118,7 @@ const RecommendationsPage = () => {
                 </p>
                 <button
                   onClick={() => setFilter('all')}
-                  className="bg-primary-600 text-white px-6 py-2 rounded hover:bg-primary-700 transition"
+                  className="bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 transition"
                 >
                   Show All Recommendations
                 </button>
@@ -136,22 +138,16 @@ const RecommendationsPage = () => {
                 if (genreMovies.length === 0) return null;
                 
                 return (
-                  <section key={genre} className="mb-8">
-                    <h2 className="text-xl font-bold mb-4">{genre}</h2>
-                    <div className="movies-row">
+                  <section key={genre} className="mb-6 md:mb-8">
+                    <h2 className="text-lg md:text-xl font-bold mb-3 md:mb-4">{genre}</h2>
+                    <div className="flex overflow-x-auto pb-4 space-x-3 md:space-x-4 no-scrollbar">
                       {genreMovies.map((movie) => (
-                        <MovieCard
-                          key={movie.id}
-                          movie={{
-                            id: movie.id,
-                            title: movie.title,
-                            genres: movie.genres,
-                            poster_url: movie.poster_url,
-                            poster_path: movie.poster_path,
-                            year: movie.year
-                          }}
-                          size="medium"
-                        />
+                        <div key={movie.id} className="flex-none w-36 sm:w-48 md:w-56">
+                          <MovieCard
+                            movie={movie}
+                            size={isMobile ? "small" : "medium"}
+                          />
+                        </div>
                       ))}
                     </div>
                   </section>
@@ -159,19 +155,12 @@ const RecommendationsPage = () => {
               })
             ) : (
               // If filter is applied, show filtered movies in a grid
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
                 {filteredRecommendations.map((movie) => (
                   <MovieCard
                     key={movie.id}
-                    movie={{
-                      id: movie.id,
-                      title: movie.title,
-                      genres: movie.genres,
-                      poster_url: movie.poster_url,
-                      poster_path: movie.poster_path,
-                      year: movie.year
-                    }}
-                    size="medium"
+                    movie={movie}
+                    size={isMobile ? "small" : "medium"}
                   />
                 ))}
               </div>

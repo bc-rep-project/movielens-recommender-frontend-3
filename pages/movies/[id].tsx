@@ -6,6 +6,7 @@ import ReactStars from 'react-rating-stars-component'
 import { useUser } from '@supabase/auth-helpers-react'
 import Layout from '../../components/Layout'
 import MovieCard from '../../components/MovieCard'
+import MovieRow from '../../components/MovieRow'
 import MoviePlaceholder from '../../components/MoviePlaceholder'
 import { getMovie, getSimilarMovies, createInteraction } from '../../utils/api'
 import { FaPlay, FaPlus, FaStar, FaChevronDown, FaTimes } from 'react-icons/fa'
@@ -19,6 +20,7 @@ const MovieDetailsPage = () => {
   const [posterError, setPosterError] = useState(false)
   const [backdropError, setBackdropError] = useState(false)
   const [showVideoPlayer, setShowVideoPlayer] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   // Fetch movie details
   const { data: movie, error: movieError } = useSWR<Movie>(
@@ -61,16 +63,17 @@ const MovieDetailsPage = () => {
     (movie.backdrop_path ? `https://image.tmdb.org/t/p/original${movie.backdrop_path}` : null)
   )
 
-  // Handle image loading errors
+  // Handle image loading events
   const handlePosterError = () => setPosterError(true)
   const handleBackdropError = () => setBackdropError(true)
+  const handleImageLoad = () => setIsLoading(false)
 
   // Loading state
   if (!movie && !movieError) {
     return (
       <Layout title="Loading... | MovieLens Recommender">
         <div className="flex justify-center items-center h-64">
-          <p className="text-lg">Loading...</p>
+          <div className="w-16 h-16 border-t-4 border-primary-600 border-solid rounded-full animate-spin"></div>
         </div>
       </Layout>
     )
@@ -90,32 +93,39 @@ const MovieDetailsPage = () => {
   return (
     <Layout title={`${movie.title} | MovieLens Recommender`} fullWidth>
       {/* Hero Banner */}
-      <div className="relative min-h-[80vh] -mt-16">
+      <div className="relative min-h-[50vh] sm:min-h-[60vh] md:min-h-[80vh] -mt-16">
         {/* Backdrop */}
         <div className="absolute inset-0 z-0">
+          {isLoading && (
+            <div className="absolute inset-0 bg-background-elevated animate-pulse" />
+          )}
+          
           {backdropUrl ? (
             <Image
               src={backdropUrl}
               alt={movie.title}
               fill
               priority
+              sizes="100vw"
               className="object-cover"
               onError={handleBackdropError}
+              onLoad={handleImageLoad}
             />
           ) : (
             <div className="w-full h-full bg-background-elevated opacity-40">
               <MoviePlaceholder title={movie.title} />
             </div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/20" />
+          {/* Gradient overlay - stronger on mobile for better text readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-background/30 sm:from-background sm:via-background/70 sm:to-background/20" />
         </div>
         
         {/* Content */}
-        <div className="relative z-10 pt-36 pb-16 px-4 sm:px-6 lg:px-8 max-w-screen-xl mx-auto">
-          <div className="flex flex-col md:flex-row gap-8">
+        <div className="relative z-10 pt-24 sm:pt-28 md:pt-36 pb-8 sm:pb-12 md:pb-16 px-4 sm:px-6 lg:px-8 max-w-screen-xl mx-auto">
+          <div className="flex flex-col md:flex-row gap-6 md:gap-8">
             {/* Movie Poster */}
-            <div className="flex-shrink-0 w-48 md:w-64 lg:w-80 mx-auto md:mx-0">
-              <div className="relative aspect-[2/3] overflow-hidden rounded">
+            <div className="flex-shrink-0 w-32 sm:w-40 md:w-64 lg:w-80 mx-auto md:mx-0">
+              <div className="relative aspect-[2/3] overflow-hidden rounded shadow-lg">
                 {posterUrl ? (
                   <Image
                     src={posterUrl}
@@ -131,79 +141,88 @@ const MovieDetailsPage = () => {
               </div>
             </div>
             
-            {/* Movie Info */}
-            <div className="flex-grow">
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4">
+            {/* Movie Info - adjusted spacing for mobile */}
+            <div className="flex-grow text-center md:text-left">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-2 sm:mb-4">
                 {movie.title}
               </h1>
               
-              <div className="flex flex-wrap items-center text-text-secondary mb-4 text-sm">
+              <div className="flex flex-wrap justify-center md:justify-start items-center text-text-secondary mb-3 sm:mb-4 text-xs sm:text-sm">
                 {movie.year && <span className="mr-3">{movie.year}</span>}
                 {movie.runtime && <span className="mr-3">{Math.floor(movie.runtime / 60)}h {movie.runtime % 60}m</span>}
-                <div className="flex flex-wrap gap-2 mt-2 md:mt-0">
+                <div className="flex flex-wrap gap-1 sm:gap-2 mt-2 w-full md:w-auto md:mt-0">
                   {movie.genres.map((genre: string, i: number) => (
-                    <span key={i} className="inline-block bg-background-lighter px-2 py-1 rounded">
+                    <span key={i} className="inline-block bg-background-lighter px-2 py-1 rounded text-xs">
                       {genre}
                     </span>
                   ))}
                 </div>
               </div>
               
-              {/* Action Buttons */}
-              <div className="flex flex-wrap gap-3 mb-6">
+              {/* Action Buttons - touch-friendly */}
+              <div className="flex flex-wrap justify-center md:justify-start gap-2 sm:gap-3 mb-4 sm:mb-6">
                 <button 
                   onClick={() => setShowVideoPlayer(true)} 
-                  className="flex items-center gap-2 bg-white text-black px-5 py-2 rounded-md hover:bg-white/90 transition"
+                  className="flex items-center gap-1 sm:gap-2 bg-white text-black px-3 sm:px-5 py-2 rounded-md hover:bg-white/90 transition touch-manipulation text-sm sm:text-base"
                 >
                   <FaPlay />
                   <span>Play</span>
                 </button>
                 
-                <button className="flex items-center gap-2 bg-background-lighter hover:bg-background-elevated px-4 py-2 rounded-md transition">
+                <button className="flex items-center gap-1 sm:gap-2 bg-background-lighter hover:bg-background-elevated px-3 sm:px-4 py-2 rounded-md transition touch-manipulation text-sm sm:text-base">
                   <FaPlus />
                   <span>My List</span>
                 </button>
                 
                 <button
                   onClick={() => handleRating(0)}
-                  className="flex items-center gap-2 bg-background-lighter hover:bg-background-elevated px-4 py-2 rounded-md transition"
+                  className="flex items-center gap-1 sm:gap-2 bg-background-lighter hover:bg-background-elevated px-3 sm:px-4 py-2 rounded-md transition touch-manipulation text-sm sm:text-base"
                 >
                   <FaStar className="text-yellow-500" />
                   <span>Rate</span>
                 </button>
               </div>
               
-              {/* Overview */}
-              <div className="mb-6">
-                <h3 className="text-xl font-bold mb-2">Overview</h3>
-                <p className="text-text-secondary">{movie.overview}</p>
+              {/* Overview - responsive text sizing */}
+              <div className="mb-4 sm:mb-6">
+                <h3 className="text-lg sm:text-xl font-bold mb-1 sm:mb-2">Overview</h3>
+                <p className="text-text-secondary text-sm sm:text-base">
+                  {movie.overview || "No overview available for this movie."}
+                </p>
               </div>
+              
+              {/* Rating component */}
+              {user && (
+                <div className="mt-2 sm:mt-4">
+                  <div className="flex items-center justify-center md:justify-start">
+                    <ReactStars
+                      count={5}
+                      onChange={handleRating}
+                      size={24}
+                      activeColor="#0ea5e9"
+                      isHalf={false}
+                    />
+                    <span className="ml-2 text-sm">
+                      {rated ? "Thanks for rating!" : "Rate this movie"}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
       
-      {/* Similar Movies */}
+      {/* Similar Movies - using our MovieRow component */}
       {similarMovies && similarMovies.length > 0 && (
-        <div className="py-10 bg-background">
+        <div className="py-6 sm:py-8 md:py-10 bg-background">
           <div className="main-container">
-            <h2 className="text-2xl font-bold mb-6">More Like This</h2>
-            <div className="movies-row">
-              {similarMovies.map((item: Movie) => (
-                <MovieCard
-                  key={item.id}
-                  movie={{
-                    id: item.id,
-                    title: item.title,
-                    genres: item.genres,
-                    poster_url: item.poster_url,
-                    poster_path: item.poster_path,
-                    year: item.year
-                  }}
-                  size="medium"
-                />
-              ))}
-            </div>
+            <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">More Like This</h2>
+            <MovieRow
+              title=""
+              movies={similarMovies}
+              size="medium"
+            />
           </div>
         </div>
       )}
@@ -227,19 +246,19 @@ const VideoPlayer = ({ isOpen, onClose, movieTitle }: { isOpen: boolean, onClose
       <div className="absolute top-4 right-4">
         <button 
           onClick={onClose}
-          className="w-10 h-10 rounded-full bg-background/50 hover:bg-background flex items-center justify-center text-white transition"
+          className="w-10 h-10 rounded-full bg-background/50 hover:bg-background flex items-center justify-center text-white transition touch-manipulation"
         >
           <FaTimes size={18} />
         </button>
       </div>
       
       <div className="h-full flex flex-col items-center justify-center p-4">
-        <div className="max-w-4xl w-full h-[60vh] bg-background-lighter rounded">
+        <div className="max-w-4xl w-full h-[40vh] sm:h-[50vh] md:h-[60vh] bg-background-lighter rounded">
           <div className="w-full h-full flex items-center justify-center text-text-secondary">
-            <div className="text-center">
-              <p className="text-xl mb-2">Video player placeholder for</p>
-              <h3 className="text-2xl font-bold text-text-primary">{movieTitle}</h3>
-              <p className="mt-4 text-sm">In a real application, this would be a video player component.</p>
+            <div className="text-center p-4">
+              <p className="text-lg sm:text-xl mb-2">Video player placeholder for</p>
+              <h3 className="text-xl sm:text-2xl font-bold text-text-primary">{movieTitle}</h3>
+              <p className="mt-4 text-xs sm:text-sm">In a real application, this would be a video player component.</p>
             </div>
           </div>
         </div>
