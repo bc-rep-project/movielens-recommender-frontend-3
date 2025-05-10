@@ -2,13 +2,142 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Additional global styles */
-html,
-body {
-  padding: 0;
-  margin: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
-    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+:root {
+  /* Netflix-inspired color palette */
+  --color-background: #141414;
+  --color-background-lighter: #232323;
+  --color-background-elevated: #2a2a2a;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #b3b3b3;
+  --color-text-tertiary: #787878;
+  --color-border: #333333;
+  --color-primary: #e50914;
+  --color-primary-dark: #b81d24;
+  --color-accent: #e50914;
+}
+
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+  
+  body {
+    @apply bg-background text-text-primary;
+    font-family: 'Netflix Sans', -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+      Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+  }
+  
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-background;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-background-lighter rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-background-elevated;
+  }
+}
+
+@layer components {
+  .main-container {
+    @apply max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  
+  /* Netflix-like button */
+  .netflix-button {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded font-medium 
+           text-white bg-primary-600 hover:bg-primary-700 transition-colors
+           focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500;
+  }
+  
+  /* Secondary button style */
+  .netflix-button-secondary {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded font-medium
+           text-white bg-background-elevated hover:bg-background-lighter transition-colors
+           focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500
+           border border-border;
+  }
+  
+  /* Movies horizontal row with overflow */
+  .movies-row {
+    @apply grid grid-flow-col auto-cols-max gap-2 overflow-x-auto pb-4 snap-x;
+    scroll-behavior: smooth;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+    
+    /* Hide scrollbar for Chrome, Safari and Opera */
+    &::-webkit-scrollbar {
+      display: none;
+    }
+    
+    & > * {
+      @apply snap-start;
+    }
+  }
+  
+  /* Card hover effect animations */
+  .card-hover-effect {
+    @apply transition-all duration-200 ease-in-out;
+    
+    &:hover {
+      @apply -translate-y-1 shadow-xl z-10 scale-110;
+    }
+  }
+
+  /* Skeleton loading animations */
+  .animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: .5;
+    }
+  }
+  
+  /* Fade in animation */
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+/* Custom media queries for Netflix-like experience */
+@media (min-width: 1400px) {
+  .movies-row {
+    @apply grid-flow-col auto-cols-[200px];
+  }
+}
+
+@media (max-width: 1399px) {
+  .movies-row {
+    @apply grid-flow-col auto-cols-[180px];
+  }
+}
+
+@media (max-width: 767px) {
+  .movies-row {
+    @apply grid-flow-col auto-cols-[140px];
+  }
 }
 
 a {
@@ -18,4 +147,4 @@ a {
 
 * {
   box-sizing: border-box;
-} 
+}

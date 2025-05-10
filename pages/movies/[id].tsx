@@ -6,7 +6,10 @@ import ReactStars from 'react-rating-stars-component'
 import { useUser } from '@supabase/auth-helpers-react'
 import Layout from '../../components/Layout'
 import MovieCard from '../../components/MovieCard'
+import MoviePlaceholder from '../../components/MoviePlaceholder'
 import { getMovie, getSimilarMovies, createInteraction } from '../../utils/api'
+import { FaPlay, FaPlus, FaStar, FaChevronDown, FaTimes } from 'react-icons/fa'
+import { Movie } from '../../types/common'
 
 const MovieDetailsPage = () => {
   const router = useRouter()
@@ -15,17 +18,18 @@ const MovieDetailsPage = () => {
   const [rated, setRated] = useState(false)
   const [posterError, setPosterError] = useState(false)
   const [backdropError, setBackdropError] = useState(false)
+  const [showVideoPlayer, setShowVideoPlayer] = useState(false)
 
   // Fetch movie details
-  const { data: movie, error: movieError } = useSWR(
+  const { data: movie, error: movieError } = useSWR<Movie>(
     id ? `movie-${id}` : null,
-    () => id ? getMovie(id as string) : null
+    (key: string) => getMovie(id as string)
   )
 
   // Fetch similar movies
-  const { data: similarMovies, error: similarError } = useSWR(
+  const { data: similarMovies, error: similarError } = useSWR<Movie[]>(
     id ? `similar-movies-${id}` : null,
-    () => id ? getSimilarMovies(id as string, 5) : null
+    (key: string) => getSimilarMovies(id as string, 5)
   )
 
   // Handle movie rating
@@ -45,18 +49,14 @@ const MovieDetailsPage = () => {
     }
   }
 
-  // Default image URLs for fallback
-  const fallbackPosterUrl = '/images/movie-placeholder.jpg'
-  const fallbackBackdropUrl = '/images/backdrop-placeholder.jpg'
-
   // Get poster URL - either direct poster_url from API or construct from poster_path
-  const posterUrl = !posterError && movie && (
+  const posterUrl = movie && !posterError && (
     movie.poster_url || 
     (movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null)
   )
 
   // Get backdrop URL - either direct backdrop_url from API or construct from backdrop_path
-  const backdropUrl = !backdropError && movie && (
+  const backdropUrl = movie && !backdropError && (
     movie.backdrop_url || 
     (movie.backdrop_path ? `https://image.tmdb.org/t/p/original${movie.backdrop_path}` : null)
   )
@@ -88,110 +88,164 @@ const MovieDetailsPage = () => {
   }
 
   return (
-    <Layout title={`${movie.title} | MovieLens Recommender`}>
-      {/* Backdrop Image Section */}
-      {backdropUrl && (
-        <div className="relative w-full h-64 md:h-80 -mt-6 mb-6 overflow-hidden">
-          <Image
-            src={backdropUrl}
-            alt={`${movie.title} backdrop`}
-            fill
-            className="object-cover opacity-50"
-            onError={handleBackdropError}
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-white via-white/80 to-transparent dark:from-gray-900 dark:via-gray-900/80" />
+    <Layout title={`${movie.title} | MovieLens Recommender`} fullWidth>
+      {/* Hero Banner */}
+      <div className="relative min-h-[80vh] -mt-16">
+        {/* Backdrop */}
+        <div className="absolute inset-0 z-0">
+          {backdropUrl ? (
+            <Image
+              src={backdropUrl}
+              alt={movie.title}
+              fill
+              priority
+              className="object-cover"
+              onError={handleBackdropError}
+            />
+          ) : (
+            <div className="w-full h-full bg-background-elevated opacity-40">
+              <MoviePlaceholder title={movie.title} />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/20" />
         </div>
-      )}
-
-      <div className="space-y-8">
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="flex flex-col md:flex-row md:space-x-8">
+        
+        {/* Content */}
+        <div className="relative z-10 pt-36 pb-16 px-4 sm:px-6 lg:px-8 max-w-screen-xl mx-auto">
+          <div className="flex flex-col md:flex-row gap-8">
             {/* Movie Poster */}
-            <div className="md:w-1/4 mb-6 md:mb-0">
-              <div className="relative aspect-[2/3] w-full max-w-xs mx-auto overflow-hidden rounded-lg shadow-lg">
-                <Image
-                  src={posterUrl || fallbackPosterUrl}
-                  alt={movie.title}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 300px"
-                  className="object-cover"
-                  onError={handlePosterError}
-                  priority
-                />
+            <div className="flex-shrink-0 w-48 md:w-64 lg:w-80 mx-auto md:mx-0">
+              <div className="relative aspect-[2/3] overflow-hidden rounded">
+                {posterUrl ? (
+                  <Image
+                    src={posterUrl}
+                    alt={movie.title}
+                    fill
+                    priority
+                    className="object-cover"
+                    onError={handlePosterError}
+                  />
+                ) : (
+                  <MoviePlaceholder title={movie.title} />
+                )}
               </div>
             </div>
-
-            {/* Movie Details */}
-            <div className="md:w-3/4">
-              <h1 className="text-3xl font-bold text-gray-900">{movie.title}</h1>
+            
+            {/* Movie Info */}
+            <div className="flex-grow">
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4">
+                {movie.title}
+              </h1>
               
-              {movie.year && (
-                <p className="mt-2 text-gray-600">{movie.year}</p>
-              )}
-              
-              <div className="mt-4 flex flex-wrap gap-2">
-                {movie.genres.map((genre: string, index: number) => (
-                  <span 
-                    key={index} 
-                    className="inline-block bg-secondary-100 rounded-full px-3 py-1 text-sm font-semibold text-secondary-800"
-                  >
-                    {genre}
-                  </span>
-                ))}
+              <div className="flex flex-wrap items-center text-text-secondary mb-4 text-sm">
+                {movie.year && <span className="mr-3">{movie.year}</span>}
+                {movie.runtime && <span className="mr-3">{Math.floor(movie.runtime / 60)}h {movie.runtime % 60}m</span>}
+                <div className="flex flex-wrap gap-2 mt-2 md:mt-0">
+                  {movie.genres.map((genre: string, i: number) => (
+                    <span key={i} className="inline-block bg-background-lighter px-2 py-1 rounded">
+                      {genre}
+                    </span>
+                  ))}
+                </div>
               </div>
               
-              {user && (
-                <div className="mt-8">
-                  <h2 className="text-xl font-semibold mb-2">Rate this movie</h2>
-                  <div className="flex items-center">
-                    <ReactStars
-                      count={5}
-                      onChange={handleRating}
-                      size={30}
-                      activeColor="#0ea5e9"
-                      isHalf={false}
-                    />
-                    {rated && (
-                      <span className="ml-4 text-green-600">Thank you for rating!</span>
-                    )}
-                  </div>
-                </div>
-              )}
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-3 mb-6">
+                <button 
+                  onClick={() => setShowVideoPlayer(true)} 
+                  className="flex items-center gap-2 bg-white text-black px-5 py-2 rounded-md hover:bg-white/90 transition"
+                >
+                  <FaPlay />
+                  <span>Play</span>
+                </button>
+                
+                <button className="flex items-center gap-2 bg-background-lighter hover:bg-background-elevated px-4 py-2 rounded-md transition">
+                  <FaPlus />
+                  <span>My List</span>
+                </button>
+                
+                <button
+                  onClick={() => handleRating(0)}
+                  className="flex items-center gap-2 bg-background-lighter hover:bg-background-elevated px-4 py-2 rounded-md transition"
+                >
+                  <FaStar className="text-yellow-500" />
+                  <span>Rate</span>
+                </button>
+              </div>
+              
+              {/* Overview */}
+              <div className="mb-6">
+                <h3 className="text-xl font-bold mb-2">Overview</h3>
+                <p className="text-text-secondary">{movie.overview}</p>
+              </div>
             </div>
           </div>
         </div>
-
-        {/* Similar Movies Section */}
-        <div className="space-y-4">
-          <h2 className="text-2xl font-bold text-gray-900">Similar Movies</h2>
-          
-          {!similarMovies ? (
-            <p>Loading similar movies...</p>
-          ) : similarError ? (
-            <p className="text-red-500">Error loading similar movies</p>
-          ) : similarMovies.similar_items.length === 0 ? (
-            <p>No similar movies found</p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-              {similarMovies.similar_items.map((item: any) => (
-                <MovieCard 
-                  key={item.movie.id || item.movie._id} 
+      </div>
+      
+      {/* Similar Movies */}
+      {similarMovies && similarMovies.length > 0 && (
+        <div className="py-10 bg-background">
+          <div className="main-container">
+            <h2 className="text-2xl font-bold mb-6">More Like This</h2>
+            <div className="movies-row">
+              {similarMovies.map((item: Movie) => (
+                <MovieCard
+                  key={item.id}
                   movie={{
-                    id: item.movie.id || item.movie._id,
-                    title: item.movie.title,
-                    genres: item.movie.genres,
-                    poster_url: item.movie.poster_url,
-                    poster_path: item.movie.poster_path
-                  }} 
+                    id: item.id,
+                    title: item.title,
+                    genres: item.genres,
+                    poster_url: item.poster_url,
+                    poster_path: item.poster_path,
+                    year: item.year
+                  }}
+                  size="medium"
                 />
               ))}
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
+      
+      {/* Video Player */}
+      <VideoPlayer 
+        isOpen={showVideoPlayer} 
+        onClose={() => setShowVideoPlayer(false)}
+        movieTitle={movie.title}
+      />
     </Layout>
   )
 }
 
-export default MovieDetailsPage 
+// Video player component (placeholder)
+const VideoPlayer = ({ isOpen, onClose, movieTitle }: { isOpen: boolean, onClose: () => void, movieTitle: string }) => {
+  if (!isOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 bg-black/95 z-50 animate-fade-in">
+      <div className="absolute top-4 right-4">
+        <button 
+          onClick={onClose}
+          className="w-10 h-10 rounded-full bg-background/50 hover:bg-background flex items-center justify-center text-white transition"
+        >
+          <FaTimes size={18} />
+        </button>
+      </div>
+      
+      <div className="h-full flex flex-col items-center justify-center p-4">
+        <div className="max-w-4xl w-full h-[60vh] bg-background-lighter rounded">
+          <div className="w-full h-full flex items-center justify-center text-text-secondary">
+            <div className="text-center">
+              <p className="text-xl mb-2">Video player placeholder for</p>
+              <h3 className="text-2xl font-bold text-text-primary">{movieTitle}</h3>
+              <p className="mt-4 text-sm">In a real application, this would be a video player component.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default MovieDetailsPage
