@@ -1,5 +1,6 @@
 import { useRouter } from 'next/router'
 import { useState } from 'react'
+import Image from 'next/image'
 import useSWR from 'swr'
 import ReactStars from 'react-rating-stars-component'
 import { useUser } from '@supabase/auth-helpers-react'
@@ -12,6 +13,8 @@ const MovieDetailsPage = () => {
   const { id } = router.query
   const user = useUser()
   const [rated, setRated] = useState(false)
+  const [posterError, setPosterError] = useState(false)
+  const [backdropError, setBackdropError] = useState(false)
 
   // Fetch movie details
   const { data: movie, error: movieError } = useSWR(
@@ -42,6 +45,26 @@ const MovieDetailsPage = () => {
     }
   }
 
+  // Default image URLs for fallback
+  const fallbackPosterUrl = '/images/movie-placeholder.jpg'
+  const fallbackBackdropUrl = '/images/backdrop-placeholder.jpg'
+
+  // Get poster URL - either direct poster_url from API or construct from poster_path
+  const posterUrl = !posterError && movie && (
+    movie.poster_url || 
+    (movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null)
+  )
+
+  // Get backdrop URL - either direct backdrop_url from API or construct from backdrop_path
+  const backdropUrl = !backdropError && movie && (
+    movie.backdrop_url || 
+    (movie.backdrop_path ? `https://image.tmdb.org/t/p/original${movie.backdrop_path}` : null)
+  )
+
+  // Handle image loading errors
+  const handlePosterError = () => setPosterError(true)
+  const handleBackdropError = () => setBackdropError(true)
+
   // Loading state
   if (!movie && !movieError) {
     return (
@@ -66,11 +89,46 @@ const MovieDetailsPage = () => {
 
   return (
     <Layout title={`${movie.title} | MovieLens Recommender`}>
+      {/* Backdrop Image Section */}
+      {backdropUrl && (
+        <div className="relative w-full h-64 md:h-80 -mt-6 mb-6 overflow-hidden">
+          <Image
+            src={backdropUrl}
+            alt={`${movie.title} backdrop`}
+            fill
+            className="object-cover opacity-50"
+            onError={handleBackdropError}
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-white via-white/80 to-transparent dark:from-gray-900 dark:via-gray-900/80" />
+        </div>
+      )}
+
       <div className="space-y-8">
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="flex flex-col md:flex-row md:space-x-6">
-            <div className="flex-1">
+          <div className="flex flex-col md:flex-row md:space-x-8">
+            {/* Movie Poster */}
+            <div className="md:w-1/4 mb-6 md:mb-0">
+              <div className="relative aspect-[2/3] w-full max-w-xs mx-auto overflow-hidden rounded-lg shadow-lg">
+                <Image
+                  src={posterUrl || fallbackPosterUrl}
+                  alt={movie.title}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 300px"
+                  className="object-cover"
+                  onError={handlePosterError}
+                  priority
+                />
+              </div>
+            </div>
+
+            {/* Movie Details */}
+            <div className="md:w-3/4">
               <h1 className="text-3xl font-bold text-gray-900">{movie.title}</h1>
+              
+              {movie.year && (
+                <p className="mt-2 text-gray-600">{movie.year}</p>
+              )}
               
               <div className="mt-4 flex flex-wrap gap-2">
                 {movie.genres.map((genre: string, index: number) => (
@@ -117,7 +175,16 @@ const MovieDetailsPage = () => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
               {similarMovies.similar_items.map((item: any) => (
-                <MovieCard key={item.movie._id} movie={item.movie} />
+                <MovieCard 
+                  key={item.movie.id || item.movie._id} 
+                  movie={{
+                    id: item.movie.id || item.movie._id,
+                    title: item.movie.title,
+                    genres: item.movie.genres,
+                    poster_url: item.movie.poster_url,
+                    poster_path: item.movie.poster_path
+                  }} 
+                />
               ))}
             </div>
           )}

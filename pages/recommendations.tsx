@@ -20,7 +20,7 @@ const RecommendationsPage = () => {
   // Fetch user recommendations
   const { data: recommendations, error } = useSWR(
     user ? `user-recommendations-${user.id}` : null,
-    () => user ? getUserRecommendations(user.id, 20) : null
+    () => user ? getUserRecommendations(undefined, 20) : null
   )
 
   const isLoading = !recommendations && !error && user !== null
@@ -37,7 +37,7 @@ const RecommendationsPage = () => {
   }
 
   // No recommendations yet
-  if (recommendations?.recommendations?.length === 0) {
+  if (recommendations?.length === 0) {
     return (
       <Layout title="Recommendations | MovieLens Recommender">
         <div className="space-y-6">
@@ -89,10 +89,16 @@ const RecommendationsPage = () => {
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {recommendations?.recommendations?.map((recommendation: any) => (
+          {recommendations?.map((movie: any) => (
             <MovieCard 
-              key={recommendation.movie._id} 
-              movie={recommendation.movie} 
+              key={movie.id} 
+              movie={{
+                id: movie.id,
+                title: movie.title,
+                genres: movie.genres,
+                poster_url: movie.poster_url,
+                poster_path: movie.poster_path
+              }} 
             />
           ))}
         </div>

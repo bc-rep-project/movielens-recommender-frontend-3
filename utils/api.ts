@@ -15,13 +15,13 @@ const api = axios.create({
 // Add request interceptor to add authentication token
 api.interceptors.request.use(async (config) => {
   try {
-    const { data: { session } } = await supabase.auth.getSession()
-    
-    if (session?.access_token) {
-      config.headers.Authorization = `Bearer ${session.access_token}`
-    }
-    
-    return config
+  const { data: { session } } = await supabase.auth.getSession()
+  
+  if (session?.access_token) {
+    config.headers.Authorization = `Bearer ${session.access_token}`
+  }
+  
+  return config
   } catch (error) {
     console.error('Error getting auth session:', error)
     return config
@@ -103,9 +103,9 @@ const handleApiError = (error: unknown, defaultMessage = 'An error occurred') =>
 // API endpoints with error handling
 export const getMovies = async (page = 1, limit = 20) => {
   try {
-    const skip = (page - 1) * limit
-    const response = await api.get(`/movies?skip=${skip}&limit=${limit}`)
-    return response.data
+  const skip = (page - 1) * limit
+  const response = await api.get(`/movies?skip=${skip}&limit=${limit}`)
+  return response.data
   } catch (error) {
     console.error('Error fetching movies:', error)
     throw new Error(handleApiError(error, 'Failed to fetch movies'))
@@ -114,8 +114,8 @@ export const getMovies = async (page = 1, limit = 20) => {
 
 export const getMovie = async (id: string) => {
   try {
-    const response = await api.get(`/movies/${id}`)
-    return response.data
+  const response = await api.get(`/movies/${id}`)
+  return response.data
   } catch (error) {
     console.error(`Error fetching movie ${id}:`, error)
     throw new Error(handleApiError(error, 'Failed to fetch movie details'))
@@ -124,9 +124,9 @@ export const getMovie = async (id: string) => {
 
 export const searchMovies = async (query: string, page = 1, limit = 20) => {
   try {
-    const skip = (page - 1) * limit
-    const response = await api.get(`/movies/search?query=${encodeURIComponent(query)}&skip=${skip}&limit=${limit}`)
-    return response.data
+  const skip = (page - 1) * limit
+  const response = await api.get(`/movies/search?query=${encodeURIComponent(query)}&skip=${skip}&limit=${limit}`)
+  return response.data
   } catch (error) {
     console.error(`Error searching movies with query "${query}":`, error)
     throw new Error(handleApiError(error, 'Failed to search movies'))
@@ -135,15 +135,15 @@ export const searchMovies = async (query: string, page = 1, limit = 20) => {
 
 export const createInteraction = async (userId: string, movieId: string, type = 'view', value?: number) => {
   try {
-    const payload = {
-      userId,
-      movieId,
-      type,
-      ...(value !== undefined ? { value } : {})
-    }
-    
-    const response = await api.post('/interactions', payload)
-    return response.data
+  const payload = {
+    userId,
+    movieId,
+    type,
+    ...(value !== undefined ? { value } : {})
+  }
+  
+  const response = await api.post('/interactions', payload)
+  return response.data
   } catch (error) {
     console.error(`Error creating interaction for movie ${movieId}:`, error)
     throw new Error(handleApiError(error, 'Failed to record your interaction'))
@@ -164,7 +164,7 @@ export const getUserRecommendations = async (userId?: string, limit = 10) => {
   try {
     // userId is optional and ignored since it's included in the auth token
     const response = await api.get(`/recommendations/user?limit=${limit}`)
-    return response.data
+  return response.data
   } catch (error) {
     console.error('Error fetching user recommendations:', error)
     throw new Error(handleApiError(error, 'Failed to fetch recommendations'))
@@ -173,8 +173,8 @@ export const getUserRecommendations = async (userId?: string, limit = 10) => {
 
 export const getSimilarMovies = async (movieId: string, limit = 10) => {
   try {
-    const response = await api.get(`/recommendations/item/${movieId}?limit=${limit}`)
-    return response.data
+  const response = await api.get(`/recommendations/item/${movieId}?limit=${limit}`)
+  return response.data
   } catch (error) {
     console.error(`Error fetching similar movies for ${movieId}:`, error)
     throw new Error(handleApiError(error, 'Failed to fetch similar movies'))
@@ -183,11 +183,39 @@ export const getSimilarMovies = async (movieId: string, limit = 10) => {
 
 export const getPopularMovies = async (limit = 10) => {
   try {
-    const response = await api.get(`/recommendations/popular?limit=${limit}`)
-    return response.data
+  const response = await api.get(`/recommendations/popular?limit=${limit}`)
+  return response.data
   } catch (error) {
     console.error('Error fetching popular movies:', error)
     throw new Error(handleApiError(error, 'Failed to fetch popular movies'))
+  }
+}
+
+// Auth-related functions
+export const register = async (email: string, password: string, fullName?: string) => {
+  try {
+    const response = await axios.post(`${API_URL}/api/auth/register`, {
+      email,
+      password,
+      full_name: fullName || undefined
+    })
+    return response.data
+  } catch (error) {
+    console.error('Registration error:', error)
+    throw new Error(handleApiError(error, 'Failed to register user'))
+  }
+}
+
+export const login = async (email: string, password: string) => {
+  try {
+    const response = await axios.post(`${API_URL}/api/auth/login`, {
+      email,
+      password
+    })
+    return response.data
+  } catch (error) {
+    console.error('Login error:', error)
+    throw new Error(handleApiError(error, 'Failed to login'))
   }
 }
 

@@ -1,0 +1,8 @@
+/* This is a placeholder file representing a movie backdrop image.
+ * In a production environment, this would be replaced with an actual JPEG image.
+ * 
+ * Recommended dimensions: 1280x720px (16:9 aspect ratio)
+ * 
+ * For development purposes, you can use an image service like:
+ * https://placehold.co/1280x720/darkgray/gray?text=No+Backdrop+Available
+ */ 

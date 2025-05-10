@@ -17,7 +17,7 @@ const Home = () => {
   // Fetch user recommendations if user is logged in
   const { data: userRecommendations, error: recommendationsError } = useSWR(
     user ? `user-recommendations-${user.id}` : null,
-    () => user ? getUserRecommendations(user.id, 5) : null
+    () => user ? getUserRecommendations(undefined, 10) : null
   )
   
   // Fetch recent movies
@@ -27,7 +27,7 @@ const Home = () => {
   )
 
   const isLoading = !popularMovies && !popularError;
-  const hasRecommendations = userRecommendations?.recommendations?.length > 0;
+  const hasRecommendations = userRecommendations?.length > 0;
 
   return (
     <Layout title="Home | MovieLens Recommender">
@@ -53,8 +53,17 @@ const Home = () => {
               </a>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-              {userRecommendations?.recommendations?.map((recommendation: any) => (
-                <MovieCard key={recommendation.movie._id} movie={recommendation.movie} />
+              {userRecommendations?.map((movie: any) => (
+                <MovieCard 
+                  key={movie.id} 
+                  movie={{
+                    id: movie.id,
+                    title: movie.title,
+                    genres: movie.genres,
+                    poster_url: movie.poster_url,
+                    poster_path: movie.poster_path
+                  }}
+                />
               ))}
             </div>
           </section>
@@ -72,7 +81,16 @@ const Home = () => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
               {popularMovies?.map((movie: any) => (
-                <MovieCard key={movie._id} movie={movie} />
+                <MovieCard 
+                  key={movie.id} 
+                  movie={{
+                    id: movie.id,
+                    title: movie.title,
+                    genres: movie.genres,
+                    poster_url: movie.poster_url,
+                    poster_path: movie.poster_path
+                  }}
+                />
               ))}
             </div>
           )}
@@ -90,7 +108,16 @@ const Home = () => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
               {recentMovies?.map((movie: any) => (
-                <MovieCard key={movie._id} movie={movie} />
+                <MovieCard 
+                  key={movie.id} 
+                  movie={{
+                    id: movie.id,
+                    title: movie.title,
+                    genres: movie.genres,
+                    poster_url: movie.poster_url,
+                    poster_path: movie.poster_path
+                  }}
+                />
               ))}
             </div>
           )}

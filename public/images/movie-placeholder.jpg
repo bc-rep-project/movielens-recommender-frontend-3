@@ -1,0 +1,17 @@
+/* This is a placeholder file representing a movie poster image.
+ * In a production environment, this would be replaced with an actual JPEG image.
+ * 
+ * Recommended dimensions: 300x450px (2:3 aspect ratio)
+ * 
+ * For development purposes, you can use an image service like:
+ * https://placehold.co/300x450/lightgray/darkgray?text=No+Image+Available
+ */
+
+This file would normally contain a binary image.
+
+For a movie placeholder image, you could:
+1. Create a simple placeholder image with a film icon and upload it to the project.
+2. Download a stock placeholder image from a royalty-free site.
+3. Use an online service to generate a placeholder.
+
+For now, you can replace this file with a real JPG image with the dimensions of approximately 300x450 pixels to match the movie poster aspect ratio. 
