@@ -1,5 +1,5 @@
 import { useRouter } from 'next/router'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import useSWR from 'swr'
 import ReactStars from 'react-rating-stars-component'
@@ -12,6 +12,12 @@ import { getMovie, getSimilarMovies, createInteraction } from '../../utils/api'
 import { FaPlay, FaPlus, FaStar, FaChevronDown, FaTimes } from 'react-icons/fa'
 import { Movie } from '../../types/common'
 
+// Helper function to ensure we have a valid ID
+const isValidObjectId = (id?: string): boolean => {
+  if (!id) return false;
+  return /^[0-9a-fA-F]{24}$/.test(id);
+};
+
 const MovieDetailsPage = () => {
   const router = useRouter()
   const { id } = router.query
@@ -21,27 +27,56 @@ const MovieDetailsPage = () => {
   const [backdropError, setBackdropError] = useState(false)
   const [showVideoPlayer, setShowVideoPlayer] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [validId, setValidId] = useState<string | null>(null)
 
-  // Fetch movie details
+  // Validate the ID when it becomes available
+  useEffect(() => {
+    if (typeof id === 'string') {
+      const valid = isValidObjectId(id);
+      setValidId(valid ? id : null);
+      
+      // If invalid ID, you could redirect or show a message
+      if (!valid && process.env.NODE_ENV === 'development') {
+        console.error(`Invalid movie ID: ${id}`);
+      }
+    }
+  }, [id]);
+
+  // Fetch movie details (only if ID is valid)
   const { data: movie, error: movieError } = useSWR<Movie>(
-    id ? `movie-${id}` : null,
-    (key: string) => getMovie(id as string)
+    validId ? `movie-${validId}` : null,
+    validId ? () => getMovie(validId) : null
   )
 
-  // Fetch similar movies
-  const { data: similarMovies, error: similarError } = useSWR<Movie[]>(
-    id ? `similar-movies-${id}` : null,
-    (key: string) => getSimilarMovies(id as string, 5)
+  // Fetch similar movies (only if ID is valid)
+  const { data: similarMoviesResponse, error: similarError } = useSWR(
+    validId ? `similar-movies-${validId}` : null,
+    validId ? () => getSimilarMovies(validId, 5) : null
   )
+
+  // Extract the similar movies from the response (handle both array and object formats)
+  const similarMovies = similarMoviesResponse ? 
+    (Array.isArray(similarMoviesResponse) ? similarMoviesResponse : 
+     similarMoviesResponse.similar_items || []) : 
+    [];
+
+  // Log for debugging in development
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('Movie ID:', id);
+      console.debug('Valid ID:', validId);
+      console.debug('Similar movies response:', similarMoviesResponse);
+    }
+  }, [id, validId, similarMoviesResponse]);
 
   // Handle movie rating
   const handleRating = async (rating: number) => {
-    if (!user || !id) return
+    if (!user || !validId) return
 
     try {
       await createInteraction(
         user.id,
-        id as string,
+        validId,
         'rate',
         rating
       )
@@ -68,6 +103,23 @@ const MovieDetailsPage = () => {
   const handleBackdropError = () => setBackdropError(true)
   const handleImageLoad = () => setIsLoading(false)
 
+  // Invalid ID state
+  if (typeof id === 'string' && !validId) {
+    return (
+      <Layout title="Invalid Movie ID | MovieLens Recommender">
+        <div className="flex flex-col justify-center items-center h-64">
+          <p className="text-lg text-red-500 mb-4">Invalid movie ID format</p>
+          <button 
+            onClick={() => router.push('/')}
+            className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 transition"
+          >
+            Return to Home
+          </button>
+        </div>
+      </Layout>
+    )
+  }
+
   // Loading state
   if (!movie && !movieError) {
     return (
@@ -89,6 +141,9 @@ const MovieDetailsPage = () => {
       </Layout>
     )
   }
+
+  // Ensure similar movies have valid IDs before rendering
+  const validSimilarMovies = similarMovies?.filter((m: Movie) => m && isValidObjectId(m.id)) || [];
 
   return (
     <Layout title={`${movie.title} | MovieLens Recommender`} fullWidth>
@@ -214,13 +269,13 @@ const MovieDetailsPage = () => {
       </div>
       
       {/* Similar Movies - using our MovieRow component */}
-      {similarMovies && similarMovies.length > 0 && (
+      {validSimilarMovies && validSimilarMovies.length > 0 && (
         <div className="py-6 sm:py-8 md:py-10 bg-background">
           <div className="main-container">
             <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">More Like This</h2>
             <MovieRow
               title=""
-              movies={similarMovies}
+              movies={validSimilarMovies}
               size="medium"
             />
           </div>

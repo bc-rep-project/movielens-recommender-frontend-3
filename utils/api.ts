@@ -174,7 +174,27 @@ export const getUserRecommendations = async (userId?: string, limit = 10) => {
 export const getSimilarMovies = async (movieId: string, limit = 10) => {
   try {
   const response = await api.get(`/recommendations/item/${movieId}?limit=${limit}`)
-  return response.data
+  // The API can return either an array of movies or an object with similar_items property
+  const data = response.data;
+  
+  // If it's already an array, return it
+  if (Array.isArray(data)) {
+    return data;
+  }
+  
+  // If it's an object with similar_items, return that array
+  if (data && Array.isArray(data.similar_items)) {
+    return data.similar_items;
+  }
+  
+  // If it's an object with a movies property, return that array (fallback for some API versions)
+  if (data && Array.isArray(data.movies)) {
+    return data.movies;
+  }
+  
+  // Return an empty array as fallback
+  console.warn(`Unexpected response format from similar movies API: ${JSON.stringify(data)}`);
+  return [];
   } catch (error) {
     console.error(`Error fetching similar movies for ${movieId}:`, error)
     throw new Error(handleApiError(error, 'Failed to fetch similar movies'))

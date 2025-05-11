@@ -139,8 +139,8 @@ const Login = () => {
           >
             <h1 className="text-2xl sm:text-3xl font-bold text-center text-primary-600 mb-2">Welcome Back</h1>
             <p className="text-gray-400 text-center mb-6">
-              Sign in to get personalized movie recommendations
-            </p>
+          Sign in to get personalized movie recommendations
+        </p>
           </motion.div>
           
           <div className="mb-6">
@@ -309,8 +309,8 @@ const Login = () => {
                 transition={{ duration: 0.3 }}
                 className="py-2"
               >
-                <Auth
-                  supabaseClient={supabaseClient}
+        <Auth
+          supabaseClient={supabaseClient}
                   appearance={{ 
                     theme: ThemeSupa,
                     variables: {
@@ -331,9 +331,9 @@ const Login = () => {
                     }
                   }}
                   theme="dark"
-                  providers={['google', 'github']}
-                  redirectTo={typeof window !== 'undefined' ? window.location.origin : undefined}
-                />
+          providers={['google', 'github']}
+          redirectTo={typeof window !== 'undefined' ? window.location.origin : undefined}
+        />
               </motion.div>
             )}
           </AnimatePresence>
@@ -351,7 +351,7 @@ const Login = () => {
               </Link>
             </p>
           </motion.div>
-        </div>
+      </div>
       </motion.div>
     </Layout>
   )

@@ -14,6 +14,16 @@ interface MovieCardProps {
   size?: 'small' | 'medium' | 'large';
 }
 
+// Helper function to ensure we have a valid ID
+const ensureValidId = (id: string | undefined): string => {
+  if (!id) return 'unknown';
+  
+  // Check if it's a valid MongoDB ObjectId (24 hex characters)
+  const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(id);
+  
+  return isValidObjectId ? id : 'unknown';
+};
+
 const MovieCard: React.FC<MovieCardProps> = ({ 
   movie, 
   hideOverlay = false,
@@ -26,6 +36,12 @@ const MovieCard: React.FC<MovieCardProps> = ({
   const [rated, setRated] = useState(false)
   
   const { id, title, genres, poster_url, poster_path, year } = movie
+  const validId = ensureValidId(id)
+  
+  // Log the movie ID for debugging
+  if (process.env.NODE_ENV === 'development') {
+    console.debug(`Rendering movie card for: ${title}, ID: ${id}, Valid ID: ${validId}`);
+  }
   
   // Determine the image source, with fallback
   const posterUrl = poster_url || (poster_path ? `https://image.tmdb.org/t/p/w500${poster_path}` : null)
@@ -39,12 +55,12 @@ const MovieCard: React.FC<MovieCardProps> = ({
   
   // Handle movie rating
   const handleRating = async (rating: number) => {
-    if (!user) return
+    if (!user || validId === 'unknown') return
 
     try {
       await createInteraction(
         user.id,
-        id,
+        validId,
         'rate',
         rating
       )
@@ -56,12 +72,12 @@ const MovieCard: React.FC<MovieCardProps> = ({
 
   // Handle movie view
   const handleView = async () => {
-    if (!user) return
+    if (!user || validId === 'unknown') return
 
     try {
       await createInteraction(
         user.id,
-        id,
+        validId,
         'view'
       )
     } catch (error) {
@@ -87,6 +103,41 @@ const MovieCard: React.FC<MovieCardProps> = ({
   // Combine hover and touch states
   const isActive = isHovered || isTouched
 
+  // If the ID is not valid, return a simpler card without links
+  if (validId === 'unknown') {
+    return (
+      <div 
+        className={`relative group ${sizeClasses[size]} transition-all duration-300 rounded-sm overflow-hidden shadow-md`}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div className="w-full h-full bg-background-elevated relative">
+          {posterUrl && !imageError ? (
+            <Image
+              src={posterUrl}
+              alt={title}
+              fill
+              className={`object-cover ${isActive ? 'brightness-75' : ''} transition-all`}
+              sizes="(max-width: 640px) 160px, (max-width: 768px) 180px, 200px"
+              onError={handleImageError}
+              loading="lazy"
+            />
+          ) : (
+            <MoviePlaceholder title={title} />
+          )}
+          
+          {!hideOverlay && (
+            <div className={`absolute bottom-0 left-0 right-0 p-2 text-white`}>
+              <h3 className="text-sm font-medium line-clamp-1">{title}</h3>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div 
       className={`relative group ${sizeClasses[size]} transition-all duration-300 rounded-sm overflow-hidden shadow-md`}
@@ -96,7 +147,7 @@ const MovieCard: React.FC<MovieCardProps> = ({
       onTouchEnd={handleTouchEnd}
     >
       {/* Movie poster or placeholder */}
-      <Link href={`/movies/${id}`} onClick={handleView}>
+      <Link href={`/movies/${validId}`} onClick={handleView}>
         <div className="w-full h-full bg-background-elevated relative">
           {posterUrl && !imageError ? (
             <Image
@@ -154,7 +205,7 @@ const MovieCard: React.FC<MovieCardProps> = ({
           {!hideOverlay && isActive && (
             <div className="absolute inset-0 flex items-center justify-center">
               <Link 
-                href={`/movies/${id}`}
+                href={`/movies/${validId}`}
                 className="p-3 sm:p-2 bg-white bg-opacity-30 rounded-full hover:bg-opacity-40 transition touch-manipulation"
                 onClick={handleView}
               >
