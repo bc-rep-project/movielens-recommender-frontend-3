@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import useSWR from 'swr'
 import Layout from '../../components/Layout'
@@ -15,13 +15,47 @@ const MoviesPage = () => {
   const router = useRouter()
   const [page, setPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
+  const [errorDetails, setErrorDetails] = useState<string | null>(null)
   const { isMobile } = useResponsive()
+
+  // Log API URL for debugging
+  useEffect(() => {
+    console.log(`API URL for movies: ${process.env.NEXT_PUBLIC_API_URL}/api/movies`);
+  }, []);
 
   // Fetch movies with pagination
   const { data: movies, error } = useSWR<Movie[]>(
     `movies-page-${page}`,
-    (key: string) => getMovies(page, MOVIES_PER_PAGE),
-    { revalidateOnFocus: false }
+    (key: string) => getMovies(page, MOVIES_PER_PAGE).catch(error => {
+      // Extract and store detailed error information
+      let errorMsg = 'Failed to load movies';
+      
+      if (error.response) {
+        errorMsg = `Error ${error.response.status}: ${error.response.statusText || 'Server error'}`;
+        console.error('API Error loading movies:', {
+          status: error.response.status,
+          data: error.response.data,
+          config: {
+            url: error.config?.url,
+            method: error.config?.method,
+            hasAuthHeader: !!error.config?.headers?.Authorization
+          }
+        });
+      } else if (error.request) {
+        errorMsg = 'No response from server. The API may be down or unreachable.';
+        console.error('Network error loading movies - no response received');
+      } else {
+        errorMsg = error.message || 'An unexpected error occurred';
+        console.error('Error loading movies:', error);
+      }
+      
+      setErrorDetails(errorMsg);
+      throw error;
+    }),
+    { 
+      revalidateOnFocus: false,
+      dedupingInterval: 60000 // Cache results for 1 minute
+    }
   )
 
   const isLoading = !movies && !error
@@ -43,8 +77,15 @@ const MoviesPage = () => {
     setPage(page + 1)
   }
 
+  // Debug log when there's an error
+  useEffect(() => {
+    if (error) {
+      console.error('Error in Movies Page:', error);
+    }
+  }, [error]);
+
   return (
-    <Layout title="Browse Movies | NetflixLens">
+    <Layout title="Browse Movies | MovieLens Recommender">
       <div className="space-y-6 md:space-y-8 px-4 md:px-0">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <h1 className="text-2xl md:text-3xl font-bold">Browse Movies</h1>
@@ -79,13 +120,25 @@ const MoviesPage = () => {
           <div className="p-4 md:p-6 text-center bg-background-lighter rounded-lg">
             <FaInfoCircle className="mx-auto text-primary-600 text-3xl md:text-4xl mb-3 md:mb-4" />
             <h3 className="text-lg font-medium mb-2">Failed to load movies</h3>
-            <p className="text-text-secondary mb-4">Sorry, we couldn't load the movies at this time.</p>
-            <button 
-              onClick={() => router.reload()}
-              className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition"
-            >
-              Try Again
-            </button>
+            <p className="text-text-secondary mb-4">
+              {errorDetails || 'Sorry, we couldn\'t load the movies at this time.'}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button 
+                onClick={() => router.reload()}
+                className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition"
+              >
+                Try Again
+              </button>
+              {error.response?.status === 401 || error.response?.status === 403 ? (
+                <button 
+                  onClick={() => router.push('/login')}
+                  className="bg-background px-4 py-2 rounded-lg hover:bg-background-elevated transition"
+                >
+                  Go to Login
+                </button>
+              ) : null}
+            </div>
           </div>
         ) : !movies?.length ? (
           <div className="text-center py-8 md:py-12">

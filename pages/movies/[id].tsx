@@ -29,6 +29,7 @@ const MovieDetailsPage = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [validId, setValidId] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [apiErrorDetails, setApiErrorDetails] = useState<string | null>(null)
 
   // Validate the ID when it becomes available
   useEffect(() => {
@@ -44,6 +45,9 @@ const MovieDetailsPage = () => {
         }
       } else {
         setErrorMessage(null);
+        
+        // Log the movie ID we're trying to fetch for debugging
+        console.log(`Attempting to load movie with ID: ${id}`);
       }
     }
   }, [id]);
@@ -52,14 +56,48 @@ const MovieDetailsPage = () => {
   const { data: movie, error: movieError } = useSWR<Movie>(
     validId ? `movie-${validId}` : null,
     validId ? () => getMovie(validId).catch(error => {
-      setErrorMessage(error.message || 'Failed to load movie');
+      // Extract detailed error information
+      let errorMsg = 'Failed to load movie';
+      let detailMsg = '';
+      
+      if (error.response) {
+        // Server responded with an error
+        errorMsg = error.response.status === 404 
+          ? 'Movie not found' 
+          : `Server error (${error.response.status})`;
+          
+        // Save detailed error information
+        detailMsg = error.response.data?.detail || error.response.statusText || '';
+        
+        console.error(`API Error: ${errorMsg}`, {
+          status: error.response.status,
+          details: detailMsg,
+          movieId: validId
+        });
+      } else if (error.request) {
+        // Request was made but no response received
+        errorMsg = 'No response from server';
+        detailMsg = 'The API server may be down or unreachable';
+        console.error('Network Error: No response received', {
+          movieId: validId,
+          request: error.request
+        });
+      } else {
+        // Error setting up the request
+        errorMsg = error.message || 'Unknown error';
+        console.error('Request Error:', error);
+      }
+      
+      setErrorMessage(errorMsg);
+      setApiErrorDetails(detailMsg);
       setIsLoading(false);
       throw error;
     }) : null,
     { 
       shouldRetryOnError: false, // Don't retry on 404 or validation errors
       revalidateOnFocus: false,  // Don't reload when window regains focus
-      onSuccess: () => setIsLoading(false)
+      onSuccess: () => setIsLoading(false),
+      dedupingInterval: 60000    // Cache results for 1 minute
     }
   )
 
@@ -67,10 +105,16 @@ const MovieDetailsPage = () => {
   const { data: similarMoviesResponse, error: similarError } = useSWR(
     validId && movie ? `similar-movies-${validId}` : null,
     validId && movie ? () => getSimilarMovies(validId, 5).catch(error => {
-      console.error(`Error loading similar movies: ${error.message}`);
+      console.error(`Error loading similar movies: ${error.message}`, {
+        movieId: validId,
+        errorDetails: error.response?.data
+      });
       return []; // Return empty array on error to avoid breaking the UI
     }) : null,
-    { revalidateOnFocus: false }
+    { 
+      revalidateOnFocus: false,
+      dedupingInterval: 60000 // Cache results for 1 minute
+    }
   )
 
   // Extract the similar movies from the response (handle both array and object formats)
@@ -92,15 +136,40 @@ const MovieDetailsPage = () => {
       console.debug('Movie ID:', id);
       console.debug('Valid ID:', validId);
       console.debug('Error Message:', errorMessage);
+      console.debug('API Error Details:', apiErrorDetails);
       console.debug('Movie Error:', movieError);
       if (similarMoviesResponse) {
         console.debug('Similar movies response type:', 
           Array.isArray(similarMoviesResponse) 
             ? 'array' 
             : typeof similarMoviesResponse);
+        console.debug('Similar movies count:', 
+          Array.isArray(similarMoviesResponse) 
+            ? similarMoviesResponse.length 
+            : similarMoviesResponse.similar_items?.length || 0);
       }
     }
-  }, [id, validId, errorMessage, movieError, similarMoviesResponse]);
+  }, [id, validId, errorMessage, apiErrorDetails, movieError, similarMoviesResponse]);
+
+  // Track page views only when we have a valid movie
+  useEffect(() => {
+    // Create view interaction when movie loads
+    if (movie && user && validId) {
+      try {
+        createInteraction(
+          user.id,
+          validId,
+          'view',
+          1
+        ).catch(error => {
+          // Don't show errors to users for view tracking
+          console.warn('Failed to record movie view:', error.message);
+        });
+      } catch (error) {
+        console.warn('Error recording view:', error);
+      }
+    }
+  }, [movie, user, validId]);
 
   // Handle movie rating
   const handleRating = async (rating: number) => {
@@ -116,6 +185,8 @@ const MovieDetailsPage = () => {
       setRated(true)
     } catch (error) {
       console.error('Error rating movie:', error)
+      // Show a more user-friendly error message here
+      alert('Unable to rate movie at this time. Please try again later.');
     }
   }
 
@@ -147,6 +218,9 @@ const MovieDetailsPage = () => {
       <Layout title="Movie Error | MovieLens Recommender">
         <div className="flex flex-col justify-center items-center h-64">
           <p className="text-lg text-red-500 mb-4">{errorMessage}</p>
+          {apiErrorDetails && (
+            <p className="text-sm text-gray-400 mb-6">{apiErrorDetails}</p>
+          )}
           <div className="flex gap-4">
             <button 
               onClick={handleBackClick}
@@ -156,10 +230,10 @@ const MovieDetailsPage = () => {
               <span>Go Back</span>
             </button>
             <button 
-              onClick={() => router.push('/')}
+              onClick={() => router.push('/movies')}
               className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 transition"
             >
-              Return to Home
+              Browse Movies
             </button>
           </div>
         </div>
@@ -182,7 +256,7 @@ const MovieDetailsPage = () => {
   // Error state
   if (movieError || !movie) {
     const errorDetail = (movieError instanceof Error) ? movieError.message : 'Unknown error';
-    const is404 = errorDetail === 'Movie not found';
+    const is404 = errorDetail.includes('not found') || apiErrorDetails?.includes('not found');
     
     return (
       <Layout title={is404 ? "Movie Not Found | MovieLens Recommender" : "Error | MovieLens Recommender"}>
@@ -190,7 +264,9 @@ const MovieDetailsPage = () => {
           <p className="text-lg text-red-500 mb-4">
             {is404 ? "Movie Not Found" : "Failed to load movie"}
           </p>
-          <p className="text-sm text-gray-400 mb-6">{errorDetail}</p>
+          <p className="text-sm text-gray-400 mb-6">
+            {apiErrorDetails || errorDetail || 'The movie could not be found or loaded at this time.'}
+          </p>
           <div className="flex gap-4">
             <button 
               onClick={handleBackClick}
@@ -200,10 +276,10 @@ const MovieDetailsPage = () => {
               <span>Go Back</span>
             </button>
             <button 
-              onClick={() => router.push('/')}
+              onClick={() => router.push('/movies')}
               className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 transition"
             >
-              Return to Home
+              Browse Movies
             </button>
           </div>
         </div>

@@ -3,6 +3,9 @@ import { supabase } from './supabase'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
+// Debug API URL to help troubleshoot backend connection issues
+console.log(`API URL configured as: ${API_URL}`)
+
 // Create an axios instance with base URL
 const api = axios.create({
   baseURL: `${API_URL}/api`,
@@ -15,38 +18,70 @@ const api = axios.create({
 // Add request interceptor to add authentication token
 api.interceptors.request.use(async (config) => {
   try {
-  const { data: { session } } = await supabase.auth.getSession()
-  
-  if (session?.access_token) {
-    config.headers.Authorization = `Bearer ${session.access_token}`
-  }
-  
-  return config
+    // Get session from Supabase
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (session?.access_token) {
+      config.headers.Authorization = `Bearer ${session.access_token}`
+      // Debug auth token (only showing first and last few characters for security)
+      if (process.env.NODE_ENV === 'development') {
+        const tokenPreview = `${session.access_token.substring(0, 5)}...${session.access_token.substring(session.access_token.length - 5)}`
+        console.debug(`Adding auth token to request: ${tokenPreview}`)
+      }
+    } else {
+      console.warn('No authentication token available for request to:', config.url)
+    }
+    
+    return config
   } catch (error) {
     console.error('Error getting auth session:', error)
     return config
   }
 })
 
-// Add response interceptor to handle errors
+// Add response interceptor to handle errors and token refresh
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
+    
+    // Log all API errors in detail during development
+    if (process.env.NODE_ENV === 'development') {
+      console.error(`API Error for ${originalRequest?.url}:`, {
+        status: error.response?.status,
+        data: error.response?.data,
+        headers: originalRequest?.headers, // Log headers to check if auth is being sent
+      })
+    }
 
-    // Handle authentication errors
+    // Handle authentication errors (401)
     if (error.response?.status === 401) {
+      console.log('Authentication failed. Attempting to refresh token...')
+      
+      // Check if we've already tried to refresh the token
+      if (originalRequest._retry) {
+        console.warn('Token refresh already attempted, redirecting to login')
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login'
+        }
+        return Promise.reject(error)
+      }
+      
       // Attempt to refresh the token
       try {
+        originalRequest._retry = true
         const { data, error: refreshError } = await supabase.auth.refreshSession()
         
         if (refreshError || !data.session) {
+          console.error('Failed to refresh token:', refreshError)
           // Redirect to login if refresh fails
           if (typeof window !== 'undefined') {
             window.location.href = '/login'
           }
           return Promise.reject(error)
         }
+        
+        console.log('Token refreshed successfully, retrying request')
         
         // Retry the original request with new token
         if (originalRequest && originalRequest.headers) {
@@ -62,9 +97,32 @@ api.interceptors.response.use(
       }
     }
     
+    // Handle forbidden errors (403)
+    if (error.response?.status === 403) {
+      console.error('Access forbidden. You may not have permission or need to log in.', {
+        url: originalRequest?.url,
+        method: originalRequest?.method,
+      })
+      
+      // Check if user is logged in and suggest login if not
+      const { data } = await supabase.auth.getSession()
+      if (!data.session) {
+        console.warn('No active session found, redirecting to login...')
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login'
+        }
+      }
+    }
+    
+    // Handle not found errors (404)
+    if (error.response?.status === 404) {
+      console.warn(`Resource not found: ${originalRequest?.url}`)
+      // Allow component to handle 404s without redirecting
+    }
+    
     // Handle network errors
     if (error.message === 'Network Error') {
-      console.error('Network error - API server may be down or unreachable')
+      console.error('Network error - API server may be down or unreachable at:', API_URL)
       // You could show a toast or notification here
     }
     
