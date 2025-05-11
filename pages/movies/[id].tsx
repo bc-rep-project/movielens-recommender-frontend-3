@@ -9,7 +9,7 @@ import MovieCard from '../../components/MovieCard'
 import MovieRow from '../../components/MovieRow'
 import MoviePlaceholder from '../../components/MoviePlaceholder'
 import { getMovie, getSimilarMovies, createInteraction } from '../../utils/api'
-import { FaPlay, FaPlus, FaStar, FaChevronDown, FaTimes } from 'react-icons/fa'
+import { FaPlay, FaPlus, FaStar, FaChevronDown, FaTimes, FaArrowLeft } from 'react-icons/fa'
 import { Movie } from '../../types/common'
 
 // Helper function to ensure we have a valid ID
@@ -38,6 +38,7 @@ const MovieDetailsPage = () => {
       
       if (!valid) {
         setErrorMessage('Invalid movie ID format');
+        setIsLoading(false);
         if (process.env.NODE_ENV === 'development') {
           console.error(`Invalid movie ID format: ${id}`);
         }
@@ -52,11 +53,13 @@ const MovieDetailsPage = () => {
     validId ? `movie-${validId}` : null,
     validId ? () => getMovie(validId).catch(error => {
       setErrorMessage(error.message || 'Failed to load movie');
+      setIsLoading(false);
       throw error;
     }) : null,
     { 
       shouldRetryOnError: false, // Don't retry on 404 or validation errors
-      revalidateOnFocus: false  // Don't reload when window regains focus
+      revalidateOnFocus: false,  // Don't reload when window regains focus
+      onSuccess: () => setIsLoading(false)
     }
   )
 
@@ -116,6 +119,11 @@ const MovieDetailsPage = () => {
     }
   }
 
+  // Handle back button click
+  const handleBackClick = () => {
+    router.back();
+  };
+
   // Get poster URL - either direct poster_url from API or construct from poster_path
   const posterUrl = movie && !posterError && (
     movie.poster_url || 
@@ -139,12 +147,21 @@ const MovieDetailsPage = () => {
       <Layout title="Movie Error | MovieLens Recommender">
         <div className="flex flex-col justify-center items-center h-64">
           <p className="text-lg text-red-500 mb-4">{errorMessage}</p>
-          <button 
-            onClick={() => router.push('/')}
-            className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 transition"
-          >
-            Return to Home
-          </button>
+          <div className="flex gap-4">
+            <button 
+              onClick={handleBackClick}
+              className="px-4 py-2 bg-background-lighter text-white rounded hover:bg-background-elevated transition flex items-center gap-2"
+            >
+              <FaArrowLeft size={14} />
+              <span>Go Back</span>
+            </button>
+            <button 
+              onClick={() => router.push('/')}
+              className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 transition"
+            >
+              Return to Home
+            </button>
+          </div>
         </div>
       </Layout>
     )
@@ -154,8 +171,9 @@ const MovieDetailsPage = () => {
   if (isLoading) {
     return (
       <Layout title="Loading... | MovieLens Recommender">
-        <div className="flex justify-center items-center h-64">
-          <div className="w-16 h-16 border-t-4 border-primary-600 border-solid rounded-full animate-spin"></div>
+        <div className="flex flex-col justify-center items-center h-64">
+          <div className="w-16 h-16 border-t-4 border-primary-600 border-solid rounded-full animate-spin mb-4"></div>
+          <p className="text-gray-400">Loading movie details...</p>
         </div>
       </Layout>
     )
@@ -164,17 +182,30 @@ const MovieDetailsPage = () => {
   // Error state
   if (movieError || !movie) {
     const errorDetail = (movieError instanceof Error) ? movieError.message : 'Unknown error';
+    const is404 = errorDetail === 'Movie not found';
+    
     return (
-      <Layout title="Error | MovieLens Recommender">
+      <Layout title={is404 ? "Movie Not Found | MovieLens Recommender" : "Error | MovieLens Recommender"}>
         <div className="flex flex-col justify-center items-center h-64">
-          <p className="text-lg text-red-500 mb-4">Failed to load movie</p>
+          <p className="text-lg text-red-500 mb-4">
+            {is404 ? "Movie Not Found" : "Failed to load movie"}
+          </p>
           <p className="text-sm text-gray-400 mb-6">{errorDetail}</p>
-          <button 
-            onClick={() => router.push('/')}
-            className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 transition"
-          >
-            Return to Home
-          </button>
+          <div className="flex gap-4">
+            <button 
+              onClick={handleBackClick}
+              className="px-4 py-2 bg-background-lighter text-white rounded hover:bg-background-elevated transition flex items-center gap-2"
+            >
+              <FaArrowLeft size={14} />
+              <span>Go Back</span>
+            </button>
+            <button 
+              onClick={() => router.push('/')}
+              className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 transition"
+            >
+              Return to Home
+            </button>
+          </div>
         </div>
       </Layout>
     )
@@ -185,14 +216,21 @@ const MovieDetailsPage = () => {
 
   return (
     <Layout title={`${movie.title} | MovieLens Recommender`} fullWidth>
+      {/* Back Button (Desktop) */}
+      <div className="hidden md:block absolute top-24 left-8 z-20">
+        <button 
+          onClick={handleBackClick}
+          className="p-3 bg-background/70 hover:bg-background-elevated/90 rounded-full transition-colors duration-200"
+          aria-label="Go back"
+        >
+          <FaArrowLeft />
+        </button>
+      </div>
+      
       {/* Hero Banner */}
       <div className="relative min-h-[50vh] sm:min-h-[60vh] md:min-h-[80vh] -mt-16">
         {/* Backdrop */}
         <div className="absolute inset-0 z-0">
-          {isLoading && (
-            <div className="absolute inset-0 bg-background-elevated animate-pulse" />
-          )}
-          
           {backdropUrl ? (
             <Image
               src={backdropUrl}
@@ -215,6 +253,17 @@ const MovieDetailsPage = () => {
         
         {/* Content */}
         <div className="relative z-10 pt-24 sm:pt-28 md:pt-36 pb-8 sm:pb-12 md:pb-16 px-4 sm:px-6 lg:px-8 max-w-screen-xl mx-auto">
+          {/* Back Button (Mobile) */}
+          <div className="md:hidden mb-4">
+            <button 
+              onClick={handleBackClick}
+              className="flex items-center gap-2 text-white/80 hover:text-white transition-colors duration-200"
+            >
+              <FaArrowLeft size={14} />
+              <span>Back</span>
+            </button>
+          </div>
+          
           <div className="flex flex-col md:flex-row gap-6 md:gap-8">
             {/* Movie Poster */}
             <div className="flex-shrink-0 w-32 sm:w-40 md:w-64 lg:w-80 mx-auto md:mx-0">

@@ -133,6 +133,9 @@ export const getMovie = async (id: string) => {
       if (error.response?.status === 400) {
         throw new Error('Invalid movie ID format');
       }
+      if (error.response?.status === 500) {
+        throw new Error('Server error while fetching movie');
+      }
     }
     
     throw new Error(handleApiError(error, 'Failed to fetch movie details'));
