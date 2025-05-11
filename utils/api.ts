@@ -39,50 +39,41 @@ api.interceptors.request.use(async (config) => {
   }
 })
 
-// Add response interceptor to handle errors and token refresh
+// Add response interceptor to handle errors
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
-    
-    // Log all API errors in detail during development
-    if (process.env.NODE_ENV === 'development') {
-      console.error(`API Error for ${originalRequest?.url}:`, {
-        status: error.response?.status,
-        data: error.response?.data,
-        headers: originalRequest?.headers, // Log headers to check if auth is being sent
-      })
+
+    // Log detailed error information
+    if (axios.isAxiosError(error)) {
+      if (error.response) {
+        console.error(`API Error ${error.response.status} for ${originalRequest?.url}:`, 
+          error.response.data, 
+          'Headers:', error.response.headers
+        )
+      } else if (error.request) {
+        console.error('No response received:', error.request)
+      }
     }
 
-    // Handle authentication errors (401)
+    // Handle authentication errors
     if (error.response?.status === 401) {
-      console.log('Authentication failed. Attempting to refresh token...')
-      
-      // Check if we've already tried to refresh the token
-      if (originalRequest._retry) {
-        console.warn('Token refresh already attempted, redirecting to login')
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login'
-        }
-        return Promise.reject(error)
-      }
-      
+      console.warn('Authentication error 401 - attempting to refresh token')
       // Attempt to refresh the token
       try {
-        originalRequest._retry = true
         const { data, error: refreshError } = await supabase.auth.refreshSession()
         
         if (refreshError || !data.session) {
-          console.error('Failed to refresh token:', refreshError)
           // Redirect to login if refresh fails
           if (typeof window !== 'undefined') {
+            console.error('Token refresh failed, redirecting to login')
             window.location.href = '/login'
           }
           return Promise.reject(error)
         }
         
         console.log('Token refreshed successfully, retrying request')
-        
         // Retry the original request with new token
         if (originalRequest && originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${data.session.access_token}`
@@ -95,34 +86,17 @@ api.interceptors.response.use(
           window.location.href = '/login'
         }
       }
-    }
-    
-    // Handle forbidden errors (403)
-    if (error.response?.status === 403) {
-      console.error('Access forbidden. You may not have permission or need to log in.', {
-        url: originalRequest?.url,
-        method: originalRequest?.method,
-      })
-      
-      // Check if user is logged in and suggest login if not
-      const { data } = await supabase.auth.getSession()
-      if (!data.session) {
-        console.warn('No active session found, redirecting to login...')
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login'
-        }
-      }
-    }
-    
-    // Handle not found errors (404)
-    if (error.response?.status === 404) {
-      console.warn(`Resource not found: ${originalRequest?.url}`)
-      // Allow component to handle 404s without redirecting
+    } else if (error.response?.status === 403) {
+      console.error('Permission denied (403) - user may not have proper permissions')
+      // For 403 errors, we could handle them gracefully here
+      // Optionally redirect to login or show a permission error message
+    } else if (error.response?.status === 404) {
+      console.error('Resource not found (404) - check ID formats and endpoints')
     }
     
     // Handle network errors
     if (error.message === 'Network Error') {
-      console.error('Network error - API server may be down or unreachable at:', API_URL)
+      console.error('Network error - API server may be down or unreachable')
       // You could show a toast or notification here
     }
     
@@ -161,42 +135,28 @@ const handleApiError = (error: unknown, defaultMessage = 'An error occurred') =>
 // API endpoints with error handling
 export const getMovies = async (page = 1, limit = 20) => {
   try {
-  const skip = (page - 1) * limit
-  const response = await api.get(`/movies?skip=${skip}&limit=${limit}`)
-  return response.data
+    console.debug(`Fetching movies from ${API_URL}/api/movies with page=${page}, limit=${limit}`)
+    const skip = (page - 1) * limit
+    const response = await api.get(`/movies?skip=${skip}&limit=${limit}`)
+    console.debug(`Received ${response.data?.length || 0} movies from API`)
+    return response.data
   } catch (error) {
     console.error('Error fetching movies:', error)
+    if (axios.isAxiosError(error)) {
+      console.error('API Response:', error.response?.data)
+      console.error('Status:', error.response?.status)
+    }
     throw new Error(handleApiError(error, 'Failed to fetch movies'))
   }
 }
 
 export const getMovie = async (id: string) => {
-  // Validate ID format first - MongoDB ObjectId is 24 hex characters
-  if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
-    console.error(`Invalid movie ID format: ${id}`);
-    throw new Error('Invalid movie ID format');
-  }
-
   try {
-    const response = await api.get(`/movies/${id}`);
-    return response.data;
+  const response = await api.get(`/movies/${id}`)
+  return response.data
   } catch (error) {
-    console.error(`Error fetching movie ${id}:`, error);
-    
-    // Handle specific error cases
-    if (axios.isAxiosError(error)) {
-      if (error.response?.status === 404) {
-        throw new Error('Movie not found');
-      }
-      if (error.response?.status === 400) {
-        throw new Error('Invalid movie ID format');
-      }
-      if (error.response?.status === 500) {
-        throw new Error('Server error while fetching movie');
-      }
-    }
-    
-    throw new Error(handleApiError(error, 'Failed to fetch movie details'));
+    console.error(`Error fetching movie ${id}:`, error)
+    throw new Error(handleApiError(error, 'Failed to fetch movie details'))
   }
 }
 
@@ -316,5 +276,30 @@ export const login = async (email: string, password: string) => {
     throw new Error(handleApiError(error, 'Failed to login'))
   }
 }
+
+// Function to verify authentication status
+export const verifyAuth = async () => {
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) {
+      return { isAuthenticated: false };
+    }
+    
+    // Verify the token with the backend
+    try {
+      const response = await api.get('/auth/verify');
+      return { 
+        isAuthenticated: true, 
+        user: response.data.user
+      };
+    } catch (error) {
+      console.error('Token verification failed:', error);
+      return { isAuthenticated: false, error };
+    }
+  } catch (error) {
+    console.error('Auth check error:', error);
+    return { isAuthenticated: false, error };
+  }
+};
 
 export default api 

@@ -12,6 +12,7 @@ interface MovieCardProps {
   movie: Movie;
   hideOverlay?: boolean;
   size?: 'small' | 'medium' | 'large';
+  onClick?: () => void;
 }
 
 // Helper function to ensure we have a valid ID
@@ -27,7 +28,8 @@ const ensureValidId = (id: string | undefined): string => {
 const MovieCard: React.FC<MovieCardProps> = ({ 
   movie, 
   hideOverlay = false,
-  size = 'medium' 
+  size = 'medium',
+  onClick
 }) => {
   const user = useUser()
   const [isHovered, setIsHovered] = useState(false)
@@ -103,15 +105,27 @@ const MovieCard: React.FC<MovieCardProps> = ({
   // Combine hover and touch states
   const isActive = isHovered || isTouched
 
+  // Use the provided onClick handler or fall back to default behavior
+  const handleClick = (e: React.MouseEvent) => {
+    if (onClick) {
+      e.preventDefault(); // Prevent default Link behavior if onClick is provided
+      onClick();
+    } else {
+      // Default behavior - log view
+      handleView();
+    }
+  };
+
   // If the ID is not valid, return a simpler card without links
   if (validId === 'unknown') {
     return (
       <div 
-        className={`relative group ${sizeClasses[size]} transition-all duration-300 rounded-sm overflow-hidden shadow-md`}
+        className={`relative group ${sizeClasses[size]} transition-all duration-300 rounded-sm overflow-hidden shadow-md cursor-pointer`}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
+        onClick={onClick}
       >
         <div className="w-full h-full bg-background-elevated relative">
           {posterUrl && !imageError ? (
@@ -147,7 +161,7 @@ const MovieCard: React.FC<MovieCardProps> = ({
       onTouchEnd={handleTouchEnd}
     >
       {/* Movie poster or placeholder */}
-      <Link href={`/movies/${validId}`} onClick={handleView}>
+      <Link href={`/movies/${validId}`} onClick={handleClick}>
         <div className="w-full h-full bg-background-elevated relative">
           {posterUrl && !imageError ? (
             <Image

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AppProps } from 'next/app'
 import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs'
 import { SessionContextProvider } from '@supabase/auth-helpers-react'
+import { AuthProvider } from '../providers/AuthProvider'
 import '../styles/globals.css'
 
 function MyApp({ Component, pageProps }: AppProps) {
@@ -13,7 +14,9 @@ function MyApp({ Component, pageProps }: AppProps) {
       supabaseClient={supabaseClient}
       initialSession={pageProps.initialSession}
     >
-      <Component {...pageProps} />
+      <AuthProvider>
+        <Component {...pageProps} />
+      </AuthProvider>
     </SessionContextProvider>
   )
 }
