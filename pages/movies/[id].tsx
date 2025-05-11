@@ -28,6 +28,7 @@ const MovieDetailsPage = () => {
   const [showVideoPlayer, setShowVideoPlayer] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [validId, setValidId] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   // Validate the ID when it becomes available
   useEffect(() => {
@@ -35,9 +36,13 @@ const MovieDetailsPage = () => {
       const valid = isValidObjectId(id);
       setValidId(valid ? id : null);
       
-      // If invalid ID, you could redirect or show a message
-      if (!valid && process.env.NODE_ENV === 'development') {
-        console.error(`Invalid movie ID: ${id}`);
+      if (!valid) {
+        setErrorMessage('Invalid movie ID format');
+        if (process.env.NODE_ENV === 'development') {
+          console.error(`Invalid movie ID format: ${id}`);
+        }
+      } else {
+        setErrorMessage(null);
       }
     }
   }, [id]);
@@ -45,13 +50,24 @@ const MovieDetailsPage = () => {
   // Fetch movie details (only if ID is valid)
   const { data: movie, error: movieError } = useSWR<Movie>(
     validId ? `movie-${validId}` : null,
-    validId ? () => getMovie(validId) : null
+    validId ? () => getMovie(validId).catch(error => {
+      setErrorMessage(error.message || 'Failed to load movie');
+      throw error;
+    }) : null,
+    { 
+      shouldRetryOnError: false, // Don't retry on 404 or validation errors
+      revalidateOnFocus: false  // Don't reload when window regains focus
+    }
   )
 
-  // Fetch similar movies (only if ID is valid)
+  // Fetch similar movies (only if ID is valid and we have loaded the main movie)
   const { data: similarMoviesResponse, error: similarError } = useSWR(
-    validId ? `similar-movies-${validId}` : null,
-    validId ? () => getSimilarMovies(validId, 5) : null
+    validId && movie ? `similar-movies-${validId}` : null,
+    validId && movie ? () => getSimilarMovies(validId, 5).catch(error => {
+      console.error(`Error loading similar movies: ${error.message}`);
+      return []; // Return empty array on error to avoid breaking the UI
+    }) : null,
+    { revalidateOnFocus: false }
   )
 
   // Extract the similar movies from the response (handle both array and object formats)
@@ -60,14 +76,28 @@ const MovieDetailsPage = () => {
      similarMoviesResponse.similar_items || []) : 
     [];
 
+  // Handle loading state changes
+  useEffect(() => {
+    if (movie || movieError || errorMessage) {
+      setIsLoading(false);
+    }
+  }, [movie, movieError, errorMessage]);
+
   // Log for debugging in development
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
       console.debug('Movie ID:', id);
       console.debug('Valid ID:', validId);
-      console.debug('Similar movies response:', similarMoviesResponse);
+      console.debug('Error Message:', errorMessage);
+      console.debug('Movie Error:', movieError);
+      if (similarMoviesResponse) {
+        console.debug('Similar movies response type:', 
+          Array.isArray(similarMoviesResponse) 
+            ? 'array' 
+            : typeof similarMoviesResponse);
+      }
     }
-  }, [id, validId, similarMoviesResponse]);
+  }, [id, validId, errorMessage, movieError, similarMoviesResponse]);
 
   // Handle movie rating
   const handleRating = async (rating: number) => {
@@ -104,11 +134,11 @@ const MovieDetailsPage = () => {
   const handleImageLoad = () => setIsLoading(false)
 
   // Invalid ID state
-  if (typeof id === 'string' && !validId) {
+  if (errorMessage) {
     return (
-      <Layout title="Invalid Movie ID | MovieLens Recommender">
+      <Layout title="Movie Error | MovieLens Recommender">
         <div className="flex flex-col justify-center items-center h-64">
-          <p className="text-lg text-red-500 mb-4">Invalid movie ID format</p>
+          <p className="text-lg text-red-500 mb-4">{errorMessage}</p>
           <button 
             onClick={() => router.push('/')}
             className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 transition"
@@ -121,7 +151,7 @@ const MovieDetailsPage = () => {
   }
 
   // Loading state
-  if (!movie && !movieError) {
+  if (isLoading) {
     return (
       <Layout title="Loading... | MovieLens Recommender">
         <div className="flex justify-center items-center h-64">
@@ -133,10 +163,18 @@ const MovieDetailsPage = () => {
 
   // Error state
   if (movieError || !movie) {
+    const errorDetail = (movieError instanceof Error) ? movieError.message : 'Unknown error';
     return (
       <Layout title="Error | MovieLens Recommender">
-        <div className="flex justify-center items-center h-64">
-          <p className="text-lg text-red-500">Failed to load movie</p>
+        <div className="flex flex-col justify-center items-center h-64">
+          <p className="text-lg text-red-500 mb-4">Failed to load movie</p>
+          <p className="text-sm text-gray-400 mb-6">{errorDetail}</p>
+          <button 
+            onClick={() => router.push('/')}
+            className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 transition"
+          >
+            Return to Home
+          </button>
         </div>
       </Layout>
     )

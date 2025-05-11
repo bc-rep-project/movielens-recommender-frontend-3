@@ -113,12 +113,29 @@ export const getMovies = async (page = 1, limit = 20) => {
 }
 
 export const getMovie = async (id: string) => {
+  // Validate ID format first - MongoDB ObjectId is 24 hex characters
+  if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+    console.error(`Invalid movie ID format: ${id}`);
+    throw new Error('Invalid movie ID format');
+  }
+
   try {
-  const response = await api.get(`/movies/${id}`)
-  return response.data
+    const response = await api.get(`/movies/${id}`);
+    return response.data;
   } catch (error) {
-    console.error(`Error fetching movie ${id}:`, error)
-    throw new Error(handleApiError(error, 'Failed to fetch movie details'))
+    console.error(`Error fetching movie ${id}:`, error);
+    
+    // Handle specific error cases
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 404) {
+        throw new Error('Movie not found');
+      }
+      if (error.response?.status === 400) {
+        throw new Error('Invalid movie ID format');
+      }
+    }
+    
+    throw new Error(handleApiError(error, 'Failed to fetch movie details'));
   }
 }
 
