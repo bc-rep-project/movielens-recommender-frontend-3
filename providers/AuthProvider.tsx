@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
-import { useSupabaseClient, useUser, User } from '@supabase/auth-helpers-react'
-import { verifyAuth } from '../utils/api'
+import { useSupabaseClient, useUser } from '@supabase/auth-helpers-react'
+import { User } from '../types/common'
 
 // Define types for auth context
 type AuthContextType = {
@@ -27,107 +27,134 @@ const AuthContext = createContext<AuthContextType>({
 
 // Provider component
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const supabaseUser = useUser()
   const supabase = useSupabaseClient()
-  const user = useUser()
   const router = useRouter()
   
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
-  const [isLoading, setIsLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string | null>(null)
+  // Convert Supabase user to our app User type
+  const user: User | null = supabaseUser ? {
+    id: supabaseUser.id,
+    email: supabaseUser.email || '',
+    name: supabaseUser.user_metadata?.full_name,
+    avatar_url: supabaseUser.user_metadata?.avatar_url,
+  } : null
 
-  // Verify authentication with the backend
-  const checkAuthStatus = async () => {
-    if (!user) {
-      setIsAuthenticated(false)
-      setIsLoading(false)
-      return
-    }
-
-    try {
-      console.log('Verifying authentication with backend...')
-      const authResult = await verifyAuth()
-      setIsAuthenticated(authResult.isAuthenticated)
-      console.log('Authentication verified:', authResult.isAuthenticated)
-    } catch (err) {
-      console.error('Error verifying authentication with backend:', err)
-      setError('Failed to verify authentication with the backend')
-      setIsAuthenticated(false)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  // Check auth status when user changes
+  const isAuthenticated = !!user
+  
+  // Check auth status on first load
   useEffect(() => {
+    const checkAuthStatus = async () => {
+      try {
+        setIsLoading(true)
+        // Nothing to do here as useUser() already gives us the authenticated user
+        // Just set loading to false after a small delay for smoother UX
+        const delay = setTimeout(() => {
+          setIsLoading(false)
+        }, 500)
+        
+        return () => clearTimeout(delay)
+      } catch (error) {
+        console.error('Error checking auth status:', error)
+        setError('Session verification failed')
+        setIsLoading(false)
+      }
+    }
+    
     checkAuthStatus()
-  }, [user])
-
-  // Login function
+  }, [supabaseUser])
+  
+  // Login with email and password
   const login = async (email: string, password: string): Promise<boolean> => {
+    setIsLoading(true)
+    setError(null)
+    
     try {
-      setError(null)
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
-
+      
       if (error) {
         setError(error.message)
+        setIsLoading(false)
         return false
       }
-
-      // Auth status will be updated by useEffect when user changes
+      
+      setIsLoading(false)
       return true
-    } catch (err: any) {
-      setError(err?.message || 'Login failed')
+    } catch (error) {
+      console.error('Login error:', error)
+      setError('An unexpected error occurred during login')
+      setIsLoading(false)
       return false
     }
   }
-
-  // Logout function
-  const logout = async () => {
+  
+  // Logout
+  const logout = async (): Promise<void> => {
+    setIsLoading(true)
+    
     try {
-      await supabase.auth.signOut()
-      setIsAuthenticated(false)
-      router.push('/login')
-    } catch (err: any) {
-      setError(err?.message || 'Logout failed')
+      const { error } = await supabase.auth.signOut()
+      
+      if (error) {
+        console.error('Logout error:', error)
+        setError(error.message)
+      } else {
+        // Redirect to home page after logout
+        router.push('/')
+      }
+    } catch (error) {
+      console.error('Logout error:', error)
+      setError('An unexpected error occurred during logout')
+    } finally {
+      setIsLoading(false)
     }
   }
-
-  // Register function
+  
+  // Register with email and password
   const register = async (email: string, password: string): Promise<boolean> => {
+    setIsLoading(true)
+    setError(null)
+    
     try {
-      setError(null)
       const { error } = await supabase.auth.signUp({
         email,
         password,
       })
-
+      
       if (error) {
         setError(error.message)
+        setIsLoading(false)
         return false
       }
-
+      
+      // Success, but user may need to confirm email
+      setIsLoading(false)
       return true
-    } catch (err: any) {
-      setError(err?.message || 'Registration failed')
+    } catch (error) {
+      console.error('Registration error:', error)
+      setError('An unexpected error occurred during registration')
+      setIsLoading(false)
       return false
     }
   }
-
-  // Context value
-  const value = {
-    isAuthenticated,
-    isLoading,
-    user,
-    error,
-    login,
-    logout,
-    register,
-  }
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  
+  return (
+    <AuthContext.Provider value={{
+      isAuthenticated,
+      isLoading,
+      user,
+      error,
+      login,
+      logout,
+      register,
+    }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 // Hook to use the auth context
