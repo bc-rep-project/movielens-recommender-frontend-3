@@ -202,7 +202,22 @@ export const getUserRecommendations = async (userId?: string, limit = 10) => {
   try {
     // userId is optional and ignored since it's included in the auth token
     const response = await api.get(`/recommendations/user?limit=${limit}`)
-  return response.data
+    // Extract recommendations array from response
+    const data = response.data
+    
+    // If it's already an array, return it
+    if (Array.isArray(data)) {
+      return data
+    }
+    
+    // If it's an object with 'recommendations' property, return that
+    if (data && Array.isArray(data.recommendations)) {
+      return data.recommendations
+    }
+    
+    // Return empty array as fallback
+    console.warn(`Unexpected response format from user recommendations API: ${JSON.stringify(data)}`)
+    return []
   } catch (error) {
     console.error('Error fetching user recommendations:', error)
     throw new Error(handleApiError(error, 'Failed to fetch recommendations'))
@@ -241,8 +256,23 @@ export const getSimilarMovies = async (movieId: string, limit = 10) => {
 
 export const getPopularMovies = async (limit = 10) => {
   try {
-  const response = await api.get(`/recommendations/popular?limit=${limit}`)
-  return response.data
+    const response = await api.get(`/recommendations/popular?limit=${limit}`)
+    // Extract recommendations array from response
+    const data = response.data
+    
+    // If it's already an array, return it
+    if (Array.isArray(data)) {
+      return data
+    }
+    
+    // If it's an object with 'recommendations' property, return that
+    if (data && Array.isArray(data.recommendations)) {
+      return data.recommendations
+    }
+    
+    // Return empty array as fallback
+    console.warn(`Unexpected response format from popular movies API: ${JSON.stringify(data)}`)
+    return []
   } catch (error) {
     console.error('Error fetching popular movies:', error)
     throw new Error(handleApiError(error, 'Failed to fetch popular movies'))
